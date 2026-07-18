@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    // Menentukan direktori output hasil compile
+    "outDir": "./dist",
+    /**
+     * @target ESNext
+     * @description Specifies the JavaScript version for the output files.
+     * Using 'ESNext' targets the latest ECMAScript features supported by modern runtimes.
+     */
+    "target": "ESNext",
+
+    /**
+     * @module NodeNext
+     * @description Specifies the module system for the output code.
+     * 'NodeNext' is used to support modern Node.js ECMAScript Modules (ESM) with import/export syntax.
+     */
+    "module": "NodeNext",
+
+    /**
+     * @moduleResolution NodeNext
+     * @description Specifies how TypeScript resolves module imports.
+     * 'NodeNext' aligns with modern Node.js ESM module resolution rules, including mandatory file extensions for relative paths.
+     */
+    "moduleResolution": "NodeNext",
+
+    /**
+     * @strict true
+     * @description Enables all strict type-checking options to prevent common runtime bugs.
+     */
+    "strict": true,
+
+    /**
+     * @skipLibCheck true
+     * @description Skips type checking of declaration files (.d.ts) in node_modules to speed up compile time.
+     */
+    "skipLibCheck": true,
+
+    /**
+     * @declaration true
+     * @description Generates corresponding '.d.ts' declaration files so consuming packages get full type autocomplete.
+     */
+    "declaration": true
+  },
+
+  /**
+   * @exclude node_modules, dist
+   * @description Excludes node_modules and the previous build output — without excluding
+   * dist, tsc picks up its own prior .d.ts output as input and fails with TS5055 on rebuild.
+   */
+  "exclude": ["node_modules", "dist"]
+}

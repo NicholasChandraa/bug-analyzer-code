@@ -1,0 +1,17 @@
+{
+  "name": "app",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "dev": "pnpm --parallel dev",
+    "build": "pnpm --parallel build"
+  },
+  "workspaces": [
+    "frontend",
+    "backend",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
