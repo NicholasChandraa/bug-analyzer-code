@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import { Hono } from "hono"
 import { SignJWT } from "jose"
 import { requireAuth } from "./require-auth.js"
-import type { AuthVariables } from "./require-auth.js"
+import type { AppVariables } from "../../utils/logger.js"
 import { env } from "../../config/env.js"
 
 const secret = new TextEncoder().encode(env.JWT_SECRET)
@@ -11,7 +11,7 @@ const signTestToken = (payload: Record<string, unknown>, expiresIn = "15m") =>
   new SignJWT(payload).setProtectedHeader({ alg: "HS256" }).setExpirationTime(expiresIn).sign(secret)
 
 function buildApp() {
-  const app = new Hono<{ Variables: AuthVariables }>()
+  const app = new Hono<{ Variables: AppVariables }>()
   app.use("/protected", requireAuth)
   app.get("/protected", (c) => c.json({ user: c.get("user") }))
   return app

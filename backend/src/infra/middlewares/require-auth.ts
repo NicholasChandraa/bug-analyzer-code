@@ -35,3 +35,14 @@ export const requireAuth: MiddlewareHandler<{ Variables: AppVariables }> = async
 
   await next()
 }
+
+/**
+ * Role guard — chain after `requireAuth` (needs `c.get("user")` already set).
+ * Usage: `.get("/admin/thing", requireAuth, requireRole("admin"), handler)`
+ */
+export const requireRole = (role: UserRole): MiddlewareHandler<{ Variables: AppVariables }> =>
+  async (c, next) => {
+    const user = c.get("user")
+    if (!user || user.role !== role) return c.json({ error: "Forbidden" }, 403)
+    await next()
+  }

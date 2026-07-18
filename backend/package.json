@@ -13,7 +13,12 @@
   "dependencies": {
     "@hono/node-server": "^2.0.6",
     "@hono/zod-validator": "^0.8.0",
+    "@langchain/core": "^1.2.3",
+    "@langchain/langgraph": "^1.4.8",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.4",
+    "@langchain/openai": "^1.5.5",
     "@restack/shared": "workspace:*",
+    "@vscode/ripgrep": "^1.18.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
@@ -21,6 +26,7 @@
     "jose": "^6.2.3",
     "pino": "^10.3.1",
     "postgres": "^3.4.9",
+    "simple-git": "^3.36.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
