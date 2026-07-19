@@ -16,21 +16,22 @@ type SessionRow = typeof authSessionsTable.$inferSelect
  *   directly for login resolution, ensuring that dependencies flow one way (auth -> user).
  */
 export const authRepo = {
-  // Explicit return type matters: without noUncheckedIndexedAccess, TS infers array
-  // destructuring as always-defined, so `user ?? null` silently loses the null branch
-  // and callers' `if (!user)` checks type-check as always-false without this annotation.
+  // Explicit return types are used. Since 'noUncheckedIndexedAccess' is enabled in tsconfig,
+  // TS correctly infers array destructuring as potentially undefined, so `user ?? null` handles the empty array case.
   findByEmail: async (email: string): Promise<UserRow | null> => {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email))
     return user ?? null
   },
 
-  create: async (data: { name: string; email: string; password: string }) => {
+  create: async (data: { name: string; email: string; password: string }): Promise<UserRow> => {
     const [user] = await db.insert(usersTable).values(data).returning()
+    if (!user) throw new Error("Failed to create user")
     return user
   },
 
-  createSession: async (data: { userId: number; refreshTokenHash: string; expiresAt: Date }) => {
+  createSession: async (data: { userId: number; refreshTokenHash: string; expiresAt: Date }): Promise<SessionRow> => {
     const [session] = await db.insert(authSessionsTable).values(data).returning()
+    if (!session) throw new Error("Failed to create session")
     return session
   },
 
