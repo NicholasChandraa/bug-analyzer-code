@@ -1,4 +1,4 @@
-import type { AuthUser, LoginInput, RegisterInput } from "@restack/shared"
+import type { AuthResponseDTO, LogoutResponseDTO, LoginRequestDTO, RegisterRequestDTO } from "@restack/shared"
 import { client, unwrap } from "@/lib/api-client"
 
 /**
@@ -10,12 +10,12 @@ import { client, unwrap } from "@/lib/api-client"
  * - Request and response structures are mapped using schemas shared from `@restack/shared`.
  */
 export const authApi = {
-  register: (data: RegisterInput) =>
-    unwrap<{ user: AuthUser }>(client.api.auth.register.$post({ json: data })),
+  register: (data: RegisterRequestDTO) =>
+    unwrap<AuthResponseDTO>(client.api.auth.register.$post({ json: data })),
 
-  login: (data: LoginInput) =>
-    unwrap<{ user: AuthUser }>(client.api.auth.login.$post({ json: data })),
+  login: (data: LoginRequestDTO) =>
+    unwrap<AuthResponseDTO>(client.api.auth.login.$post({ json: data })),
 
   logout: () =>
-    unwrap<{ success: boolean }>(client.api.auth.logout.$post()),
+    unwrap<LogoutResponseDTO>(client.api.auth.logout.$post()),
 }

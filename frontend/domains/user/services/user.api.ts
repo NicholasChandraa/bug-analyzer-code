@@ -1,4 +1,4 @@
-import type { AuthUser, UpdateProfileInput } from "@restack/shared"
+import type { AuthResponseDTO, UpdateProfileRequestDTO } from "@restack/shared"
 import { client, unwrap } from "@/lib/api-client"
 
 /**
@@ -12,8 +12,8 @@ import { client, unwrap } from "@/lib/api-client"
  */
 export const userApi = {
   me: () =>
-    unwrap<{ user: AuthUser }>(client.api.user.me.$get()),
+    unwrap<AuthResponseDTO>(client.api.user.me.$get()),
 
-  updateProfile: (data: UpdateProfileInput) =>
-    unwrap<{ user: AuthUser }>(client.api.user.profile.$put({ json: data })),
+  updateProfile: (data: UpdateProfileRequestDTO) =>
+    unwrap<AuthResponseDTO>(client.api.user.profile.$put({ json: data })),
 }

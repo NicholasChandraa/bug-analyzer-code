@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { UserResponseDTO } from "./user.schema.js"
 
 /** Zod validation schema for login form and request payload. */
 export const LoginSchema = z.object({
@@ -13,8 +14,18 @@ export const RegisterSchema = z.object({
   password: z.string().min(8).max(128),
 })
 
-/** TypeScript input type inferred from LoginSchema. */
-export type LoginInput = z.infer<typeof LoginSchema>
+/** TypeScript input Request DTO inferred from LoginSchema. */
+export type LoginRequestDTO = z.infer<typeof LoginSchema>
 
-/** TypeScript input type inferred from RegisterSchema. */
-export type RegisterInput = z.infer<typeof RegisterSchema>
+/** TypeScript input Request DTO inferred from RegisterSchema. */
+export type RegisterRequestDTO = z.infer<typeof RegisterSchema>
+
+/** Response DTO returned by login/register/refresh endpoints. */
+export interface AuthResponseDTO {
+  user: UserResponseDTO
+}
+
+/** Response DTO returned by logout endpoint. */
+export interface LogoutResponseDTO {
+  success: boolean
+}

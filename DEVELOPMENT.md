@@ -35,7 +35,8 @@ Each domain has 4 primary files:
 - `[feature].repo.ts` — Drizzle queries only (no business logic)
 - `[feature].model.ts` — Drizzle table definitions
 
-**Cross-Domain Dependency Rule**: The `auth` domain may import from `user` (e.g. `usersTable` from `user.model.ts`). The reverse (user importing from auth) is STRICTLY FORBIDDEN.
+**Cross-Domain Dependency Rule**: The `auth` domain may import from `user` (e.g. `usersTable` from `user.model.ts`). The `triage` domain may import from `repository` (e.g. `repositoriesTable` from `repository.model.ts`). The reverse dependencies (e.g., user importing from auth, or repository importing from triage) are STRICTLY FORBIDDEN.
+
 
 ### Frontend Layout (`frontend/domains/[feature]/`)
 - `components/` — UI components (no direct data fetching)
@@ -44,10 +45,17 @@ Each domain has 4 primary files:
 - `types.ts` — Local TS type declarations
 - `frontend/app/` is strictly for layout, routing config, metadata, or entry gates. Do not implement custom JSX layouts, forms, state, or complex components here. Always delegate rendering to domain feature components.
 
+## Shared Schema & DTO Naming Convention
+All DTO contracts in `@restack/shared` strictly follow explicit naming semantics:
+- **Request Payloads**: Use `<Action><Entity>RequestDTO` (e.g. `LoginRequestDTO`, `RegisterRequestDTO`, `CreateRepositoryRequestDTO`, `UpdateProfileRequestDTO`, `CreateMessageRequestDTO`).
+- **Response Payloads**: Use `<Entity>ResponseDTO` (e.g. `AuthResponseDTO`, `LogoutResponseDTO`, `UserResponseDTO`, `RepositoryResponseDTO`, `BugReportResponseDTO`, `MessageResponseDTO`, `ThreadResponseDTO`).
+
+
 ## Critical Gotcha: Shared Package Build Requirement
 `@restack/shared`'s `package.json` resolves to `dist/`, which is gitignored. When editing Zod schemas in `packages/shared/src/schemas/`, you MUST compile them by running:
 `pnpm --filter @restack/shared build`
 (or keep `pnpm --filter @restack/shared dev` watch mode running in a terminal) or the frontend and backend will fail to resolve the updated types or throw compilation errors.
+
 
 ## Auth & Cookie Strategy
 - Short-lived JWT `access_token` (15m) and opaque `refresh_token` (30d) are both set as `httpOnly` cookies at `Path=/`.

@@ -18,6 +18,13 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().optional(),
   FRONTEND_URL: z.string().default("http://localhost:3000"),
   LOG_FILE_PATH: z.string().optional(),
+
+  // LLM gateway - provider-agnostic lewat format Chat Completions ala-OpenAI.
+  LLM_API_KEY: z.string().min(1, "LLM_API_KEY wajib diisi"),
+  // Kosongkan kalau pake OpenAI resmi, isi kalau pakai gateway lain.
+  LLM_BASE_URL: z.string().url("LLM_BASE_URL harus berupa URL yang valid").optional(),
+  // Nama model sesuai provider
+  LLM_MODEL: z.string().default("gpt-5-mini"),
 })
 
 export const env = envSchema.parse(process.env)

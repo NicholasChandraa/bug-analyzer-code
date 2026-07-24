@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import type { AuthUser } from "@restack/shared"
+import type { UserResponseDTO } from "@restack/shared"
 import { userApi } from "../services/user.api"
 
 /**
@@ -20,9 +20,10 @@ import { userApi } from "../services/user.api"
  */
 export function useProfile() {
   const router = useRouter()
-  const [profile, setProfile] = useState<AuthUser | null>(null)
+  const [profile, setProfile] = useState<UserResponseDTO | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
 
   useEffect(() => {
     userApi

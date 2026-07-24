@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs"
 import { SignJWT, jwtVerify } from "jose"
 import { randomBytes, createHash } from "node:crypto"
-import type { AuthUser, LoginInput, RegisterInput } from "@restack/shared"
+import type { UserResponseDTO, LoginRequestDTO, RegisterRequestDTO } from "@restack/shared"
 import { env } from "../../config/env.js"
 import { authRepo } from "./auth.repo.js"
 import { userRepo } from "../user/user.repo.js"
@@ -24,13 +24,13 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase()
 export const ACCESS_TOKEN_TTL_SECONDS = 60 * 15 // 15 minutes
 export const REFRESH_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 
-const buildTokenPayload = (user: AuthUser): AuthTokenPayload => ({
+const buildTokenPayload = (user: UserResponseDTO): AuthTokenPayload => ({
   sub: String(user.id),
   email: user.email,
   role: user.role,
 })
 
-const signAccessToken = (user: AuthUser) =>
+const signAccessToken = (user: UserResponseDTO) =>
   new SignJWT(buildTokenPayload(user))
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -42,7 +42,7 @@ const signAccessToken = (user: AuthUser) =>
 const generateRefreshToken = () => randomBytes(32).toString("hex")
 const hashRefreshToken = (token: string) => createHash("sha256").update(token).digest("hex")
 
-const issueTokenPair = async (user: AuthUser) => {
+const issueTokenPair = async (user: UserResponseDTO) => {
   const accessToken = await signAccessToken(user)
   const refreshToken = generateRefreshToken()
   await authRepo.createSession({
@@ -54,7 +54,7 @@ const issueTokenPair = async (user: AuthUser) => {
 }
 
 export const authService = {
-  register: async (data: RegisterInput): Promise<AuthUser> => {
+  register: async (data: RegisterRequestDTO): Promise<UserResponseDTO> => {
     const email = normalizeEmail(data.email)
     const existing = await authRepo.findByEmail(email)
     if (existing) throw new Error("Email already in use")
@@ -64,7 +64,9 @@ export const authService = {
     return { id: user.id, name: user.name, email: user.email, role: user.role }
   },
 
-  login: async (data: LoginInput): Promise<AuthUser> => {
+  login: async (data: LoginRequestDTO): Promise<UserResponseDTO> => {
+
+
     const user = await authRepo.findByEmail(normalizeEmail(data.email))
     const valid = await bcrypt.compare(data.password, user ? user.password : DUMMY_HASH)
     if (!user || !valid) throw new Error("Invalid credentials")
