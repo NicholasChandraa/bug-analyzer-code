@@ -11,6 +11,7 @@ export type CodebaseSyncRow = typeof codebaseSyncTable.$inferSelect
  */
 export const repositoryRepo = {
     createRepository: async (data: typeof repositoriesTable.$inferInsert): Promise<RepositoryRow> => {
+        // [repo] = repo[0]
         const [repo] = await db.insert(repositoriesTable).values(data).returning()
         if (!repo) throw new Error("Failed to create repository")
         return repo

@@ -15,7 +15,7 @@ export interface SyncResult {
 }
 
 /**
- * Clonse `repoUrl` into `localPath` if it isn't a git repo yet, otherwise fetches
+ * Clone `repoUrl` into `localPath` if it isn't a git repo yet, otherwise fetches
  * and pulls `defaultBranch`. This is the only place that shells out to git -
  * repository.service.ts calls this and never touches simple-git direclty.
  */

@@ -64,6 +64,11 @@ export const repositoryService = {
         if (!deleted) throw new RepositoryNotFoundError("Repository not found")
     },
 
+    // Syncs repo(s) dalam disk (clone/pull via git.ts) lalu mencatat baris log per repo yang disinkronisasikan.
+    // `repositoryId` undefined means sync-all: setiap repos yang didaftarkan adalah sync berurutan,
+    // each still gets its own log row (not one shared "bulk" row) because logCodebaseSync is
+    // also what updates that repo's lastSyncedAt — skipping it would leave the dashboard's
+    // per-repo timestamps stale after a sync-all. Fails fast: one repo failing aborts the rest.
     syncRepository: async (userId: number, repositoryId?: number): Promise<CodebaseSyncResponseDTO[]> => {
         const targets = repositoryId
             ? [await repositoryRepo.getRepositoryById(repositoryId)]
