@@ -59,8 +59,12 @@ structure directly in `app/`; delegate to domain components.
 - `auth` may import from `user` (e.g. `usersTable`). The reverse is forbidden.
 - `triage` may import from `repository` (e.g. `repositoriesTable`). The reverse is forbidden.
 
-Current domains: `auth`, `user` (complete), `repository`, `triage` (models + repos done; services/routes/
-LangGraph graph still on the `plan.md` checklist and not yet wired into `hono-app.ts`).
+Current domains: `auth`, `user` (complete). `repository` has model/repo/service done (`repository.service.ts`
+wraps `infra/code-search/git.ts` for clone/pull) but no `routes.ts` yet. `triage` only has model/repo — its
+service, LangGraph agent, and routes are still on the `plan.md` checklist. Neither `repository` nor `triage`
+is mounted in `hono-app.ts` yet (only `auth`/`user` routes are `.route()`'d there today). `plan.md`'s checklist
+lags actual code in places (e.g. it still shows `repository.service.ts` and the `infra/code-search/*` files
+as unchecked) — when in doubt, check the filesystem over the checklist.
 
 ### Backend entry points
 
@@ -82,6 +86,23 @@ All shared DTO contracts strictly follow explicit naming:
 - Response Payloads: `<Entity>ResponseDTO` (e.g. `AuthResponseDTO`, `UserResponseDTO`, `RepositoryResponseDTO`).
 
 
+
+### LLM gateway & code-search infra
+
+`backend/src/infra/llm/get-chat-model.ts` exposes `getChatModel()`, a thin `ChatOpenAI` (from
+`@langchain/openai`) wrapper configured entirely from `env.LLM_API_KEY`/`LLM_BASE_URL`/`LLM_MODEL`. This
+works for any provider speaking the OpenAI-compatible Chat Completions format (SumoPod, OpenRouter, Groq,
+OpenAI itself) — switching providers is an env-var change, never a code change. Only a genuinely
+incompatible provider (native Claude/Gemini tool-calling without a compat layer) would need a new branch
+using that provider's own `@langchain/*` integration package.
+
+`backend/src/infra/code-search/` is the foundation the not-yet-built `triage.agent.ts` tools will call:
+- `git.ts` — `syncRepository()` clones if `localPath/.git` doesn't exist, otherwise fetches + checks out +
+  pulls `defaultBranch`. This is the only file allowed to touch `simple-git`; `repository.service.ts` calls
+  it and never imports `simple-git` directly.
+- `ripgrep.ts` — `searchAcrossRepos()` shells out to `@vscode/ripgrep`'s `rgPath` via `execFile` (argv array,
+  no shell interpolation) with `--fixed-strings`, so LLM-extracted search keywords (untrusted input) can
+  never be interpreted as a regex or used for command injection.
 
 ### Auth & cookies
 
@@ -108,6 +129,14 @@ Every `/api/*` request gets a `requestId` (Hono's `requestId()` middleware) and 
 to Hono context as `c.get("logger")`. `requireAuth` re-binds it with `userId` once the user is known. In
 route handlers, always log through `c.get("logger") || logger` (the module-level `logger` singleton in
 `backend/src/utils/logger.ts`) rather than the bare singleton, so logs carry correlation IDs.
+
+### Environment config
+
+`backend/src/config/env.ts` parses `process.env` through a Zod schema once at import time
+(`envSchema.parse(...)`, exported as `env`) — an invalid or missing var crashes the process immediately on
+boot rather than failing later at first use. When adding a new env var, add it to this schema (with
+`.default(...)`/`.optional()` as appropriate, `z.coerce.number()` for numeric vars) rather than reading
+`process.env` directly elsewhere.
 
 ### TypeScript strictness note
 

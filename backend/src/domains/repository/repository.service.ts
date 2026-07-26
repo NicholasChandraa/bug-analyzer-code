@@ -2,6 +2,7 @@ import type { CreateRepositoryRequestDTO, UpdateRepositoryRequestDTO, Repository
 
 import { repositoryRepo, type RepositoryRow, type CodebaseSyncRow } from "./repository.repo.js"
 import { syncRepository as syncRepositoryOnDisk } from "../../infra/code-search/git.js"
+import { installDependencies } from "../../infra/verification/sandbox.js"
 
 export class RepositoryNotFoundError extends Error { }
 export class DuplicateSlugError extends Error { }
@@ -69,6 +70,10 @@ export const repositoryService = {
     // each still gets its own log row (not one shared "bulk" row) because logCodebaseSync is
     // also what updates that repo's lastSyncedAt — skipping it would leave the dashboard's
     // per-repo timestamps stale after a sync-all. Fails fast: one repo failing aborts the rest.
+    //
+    // Install dependency (`pnpm install`) juga di sini, tapi dijalanin di dalam sandbox Docker
+    // (infra/verification/sandbox.ts) - bukan langsung di host - biar postinstall script yang
+    // jahat dari repo target gak bisa nyentuh disk server, cuma folder repo itu sendiri.
     syncRepository: async (userId: number, repositoryId?: number): Promise<CodebaseSyncResponseDTO[]> => {
         const targets = repositoryId
             ? [await repositoryRepo.getRepositoryById(repositoryId)]
@@ -80,6 +85,10 @@ export const repositoryService = {
         for (const repo of targets) {
             if (!repo) continue
             await syncRepositoryOnDisk({ repoUrl: repo.repoUrl, localPath: repo.localPath, defaultBranch: repo.defaultBranch })
+
+            const install = await installDependencies(repo.localPath)
+            if (!install.passed) throw new Error(`Dependency install gagal buat repo "${repo.slug}": ${install.output}`)
+
             const log = await repositoryRepo.logCodebaseSync(userId, repo.id)
             logs.push(toCodebaseSyncResponseDTO(log))
         }

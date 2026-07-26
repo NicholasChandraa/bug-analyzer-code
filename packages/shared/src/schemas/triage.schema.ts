@@ -1,7 +1,17 @@
 import { z } from "zod";
 
 /**
- * Zod validation schema buat kirim message baru ke thread (Request Input)
+ * Zod validation schema buat buat chat session baru (Request Input)
+ */
+export const CreateChatSessionSchema = z.object({
+    title: z.string().min(1).max(200),
+    repositoryId: z.number().int().positive().nullable().optional(),
+})
+
+export type CreateChatSessionRequestDTO = z.infer<typeof CreateChatSessionSchema>
+
+/**
+ * Zod validation schema buat kirim message baru ke chat session (Request Input)
  */
 export const CreateMessageSchema = z.object({
     // saat ini maksimal karakter untuk konten adalah 10.000 karakter, dan bisa disesuaikan kedepannya
@@ -24,7 +34,7 @@ export type UpdateBugReportStatusRequestDTO = z.infer<typeof UpdateBugReportStat
 /**
  * Bentuk Response DTO publik yang dikembalikan endpoint triage ke frontend
  */
-export interface ThreadResponseDTO {
+export interface ChatSessionResponseDTO {
     id: number
     title: string
     repositoryId: number | null
@@ -41,7 +51,7 @@ export interface MessageResponseDTO {
 
 export interface BugReportResponseDTO {
     id: number
-    threadId: number
+    chatSessionId: number
     repositoryId: number
     repositoryName?: string
     filePath: string

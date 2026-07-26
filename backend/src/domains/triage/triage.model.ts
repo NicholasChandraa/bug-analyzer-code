@@ -6,11 +6,11 @@ export const messageRoleEnum = pgEnum("message_role", ["user", "assistant"])
 export const bugReportStatusEnum = pgEnum("bug_report_status", ["open", "in_progress", "resolved"])
 
 /**
- * Threads Table Schema
- * satu thread = satu sesi percakapan bug report antara user dan agent
+ * Chat Sessions Table Schema
+ * satu chat session = satu sesi percakapan bug report antara user dan agent
  * repositoryId nullable: jika null, agent mencari di semua repo yang terdaftar
  */
-export const threadsTable = pgTable("threads", {
+export const chatSessionsTable = pgTable("chat_sessions", {
     id: serial("id").primaryKey(),
     userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
     repositoryId: integer("repository_id").references(() => repositoriesTable.id, { onDelete: "set null" }),
@@ -20,12 +20,12 @@ export const threadsTable = pgTable("threads", {
 
 /**
  * Messages Table Schema
- * isi peracakapan per threadnya, dari user ataupun agent
+ * isi percakapan per chat session, dari user ataupun agent
  * imageUrl bisa kosong karena tiap message belum tentu dikirim imagenya.
  */
 export const messagesTable = pgTable("messages", {
     id: serial("id").primaryKey(),
-    threadId: integer("thread_id").notNull().references(() => threadsTable.id, { onDelete: "cascade" }),
+    chatSessionId: integer("chat_session_id").notNull().references(() => chatSessionsTable.id, { onDelete: "cascade" }),
     role: messageRoleEnum("role").notNull(),
     content: text("content").notNull(),
     imageUrl: text("image_url"),
@@ -39,7 +39,7 @@ export const messagesTable = pgTable("messages", {
  */
 export const bugReportsTable = pgTable("bug_reports", {
     id: serial("id").primaryKey(),
-    threadId: integer("thread_id").notNull().references(() => threadsTable.id, { onDelete: "cascade" }),
+    chatSessionId: integer("chat_session_id").notNull().references(() => chatSessionsTable.id, { onDelete: "cascade" }),
     repositoryId: integer("repository_id").notNull().references(() => repositoriesTable.id, { onDelete: "cascade" }),
     filePath: text("file_path").notNull(),
     lineEstimate: text("line_estimate"),

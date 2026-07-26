@@ -47,8 +47,8 @@ Each domain has 4 primary files:
 
 ## Shared Schema & DTO Naming Convention
 All DTO contracts in `@restack/shared` strictly follow explicit naming semantics:
-- **Request Payloads**: Use `<Action><Entity>RequestDTO` (e.g. `LoginRequestDTO`, `RegisterRequestDTO`, `CreateRepositoryRequestDTO`, `UpdateProfileRequestDTO`, `CreateMessageRequestDTO`).
-- **Response Payloads**: Use `<Entity>ResponseDTO` (e.g. `AuthResponseDTO`, `LogoutResponseDTO`, `UserResponseDTO`, `RepositoryResponseDTO`, `BugReportResponseDTO`, `MessageResponseDTO`, `ThreadResponseDTO`).
+- **Request Payloads**: Use `<Action><Entity>RequestDTO` (e.g. `LoginRequestDTO`, `RegisterRequestDTO`, `CreateRepositoryRequestDTO`, `UpdateProfileRequestDTO`, `CreateChatSessionRequestDTO`, `CreateMessageRequestDTO`).
+- **Response Payloads**: Use `<Entity>ResponseDTO` (e.g. `AuthResponseDTO`, `LogoutResponseDTO`, `UserResponseDTO`, `RepositoryResponseDTO`, `BugReportResponseDTO`, `MessageResponseDTO`, `ChatSessionResponseDTO`).
 
 
 ## Critical Gotcha: Shared Package Build Requirement

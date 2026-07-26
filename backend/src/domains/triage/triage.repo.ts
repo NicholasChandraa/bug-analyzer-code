@@ -1,12 +1,12 @@
 import { eq, desc } from "drizzle-orm"
 import { db } from "../../infra/db/index.js"
 import { repositoriesTable } from "../repository/repository.model.js"
-import { threadsTable, messagesTable, bugReportsTable } from "./triage.model.js"
+import { chatSessionsTable, messagesTable, bugReportsTable } from "./triage.model.js"
 
 /**
  * Buat type data mengikuti table database
  */
-export type ThreadRow = typeof threadsTable.$inferSelect
+export type ChatSessionRow = typeof chatSessionsTable.$inferSelect
 export type MessageRow = typeof messagesTable.$inferSelect
 export type BugReportRow = typeof bugReportsTable.$inferSelect
 
@@ -15,15 +15,20 @@ export type BugReportRow = typeof bugReportsTable.$inferSelect
  * Semi-DDD rules: cuma query Drizzle disini, gak ada business logic.
  */
 export const triageRepo = {
-    // --- Thread & Message ---
-    createThread: async (userId: number, title: string, repositoryId?: number | null): Promise<ThreadRow> => {
-        const [thread] = await db.insert(threadsTable).values({ userId, title, repositoryId: repositoryId ?? null }).returning()
-        if (!thread) throw new Error("Failed to create thread")
-        return thread
+    // --- Chat Session & Message ---
+    createChatSession: async (userId: number, title: string, repositoryId?: number | null): Promise<ChatSessionRow> => {
+        const [session] = await db.insert(chatSessionsTable).values({ userId, title, repositoryId: repositoryId ?? null }).returning()
+        if (!session) throw new Error("Failed to create chat session")
+        return session
     },
 
-    listThreadsByUser: async (userId: number): Promise<ThreadRow[]> => {
-        return db.select().from(threadsTable).where(eq(threadsTable.userId, userId)).orderBy(desc(threadsTable.createdAt))
+    listChatSessionsByUser: async (userId: number): Promise<ChatSessionRow[]> => {
+        return db.select().from(chatSessionsTable).where(eq(chatSessionsTable.userId, userId)).orderBy(desc(chatSessionsTable.createdAt))
+    },
+
+    getChatSessionById: async (id: number): Promise<ChatSessionRow | null> => {
+        const [session] = await db.select().from(chatSessionsTable).where(eq(chatSessionsTable.id, id))
+        return session ?? null
     },
 
     addMessage: async (data: typeof messagesTable.$inferInsert): Promise<MessageRow> => {
@@ -32,8 +37,8 @@ export const triageRepo = {
         return message
     },
 
-    listMessagesByThread: async (threadId: number): Promise<MessageRow[]> => {
-        return db.select().from(messagesTable).where(eq(messagesTable.threadId, threadId)).orderBy(messagesTable.createdAt)
+    listMessagesByChatSession: async (chatSessionId: number): Promise<MessageRow[]> => {
+        return db.select().from(messagesTable).where(eq(messagesTable.chatSessionId, chatSessionId)).orderBy(messagesTable.createdAt)
     },
 
     // --- Bug Reports ---
@@ -51,7 +56,7 @@ export const triageRepo = {
         return db
             .select({
                 id: bugReportsTable.id,
-                threadId: bugReportsTable.threadId,
+                chatSessionId: bugReportsTable.chatSessionId,
                 repositoryId: bugReportsTable.repositoryId,
                 repositoryName: repositoriesTable.name,
                 repositorySlug: repositoriesTable.slug,

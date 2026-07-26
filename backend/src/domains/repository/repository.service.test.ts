@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { repositoryService, RepositoryNotFoundError, DuplicateSlugError } from "./repository.service.js"
 import { repositoryRepo } from "./repository.repo.js"
 import { syncRepository } from "../../infra/code-search/git.js"
+import { installDependencies } from "../../infra/verification/sandbox.js"
 
 vi.mock("./repository.repo.js", () => ({
     repositoryRepo: {
@@ -20,8 +21,13 @@ vi.mock("../../infra/code-search/git.js", () => ({
     syncRepository: vi.fn(),
 }))
 
+vi.mock("../../infra/verification/sandbox.js", () => ({
+    installDependencies: vi.fn(),
+}))
+
 const mockedRepo = vi.mocked(repositoryRepo, true)
 const mockedSync = vi.mocked(syncRepository)
+const mockedInstall = vi.mocked(installDependencies)
 
 const dbRepo = (overrides: Partial<Awaited<ReturnType<typeof repositoryRepo.getRepositoryById>>> = {}) => ({
     id: 1,
@@ -120,9 +126,10 @@ describe("repositoryService.deleteRepository", () => {
 })
 
 describe("repositoryService.syncRepository", () => {
-    it("syncs a single repo on disk and logs it", async () => {
+    it("syncs a single repo on disk, installs deps in the sandbox, and logs it", async () => {
         mockedRepo.getRepositoryById.mockResolvedValue(dbRepo())
         mockedSync.mockResolvedValue({ action: "pulled", localPath: "./repos/frontend" })
+        mockedInstall.mockResolvedValue({ passed: true, output: "" })
         mockedRepo.logCodebaseSync.mockResolvedValue(dbSyncLog())
 
         const logs = await repositoryService.syncRepository(1, 1)
@@ -132,6 +139,7 @@ describe("repositoryService.syncRepository", () => {
             localPath: "./repos/frontend",
             defaultBranch: "main",
         })
+        expect(mockedInstall).toHaveBeenCalledWith("./repos/frontend")
         expect(logs).toHaveLength(1)
     })
 
@@ -140,14 +148,25 @@ describe("repositoryService.syncRepository", () => {
         await expect(repositoryService.syncRepository(1, 999)).rejects.toThrow(RepositoryNotFoundError)
     })
 
+    it("throws when dependency install fails in the sandbox", async () => {
+        mockedRepo.getRepositoryById.mockResolvedValue(dbRepo())
+        mockedSync.mockResolvedValue({ action: "pulled", localPath: "./repos/frontend" })
+        mockedInstall.mockResolvedValue({ passed: false, output: "postinstall script exited with code 1" })
+
+        await expect(repositoryService.syncRepository(1, 1)).rejects.toThrow("Dependency install gagal")
+        expect(mockedRepo.logCodebaseSync).not.toHaveBeenCalled()
+    })
+
     it("syncs every registered repo and logs each one when no repositoryId is given", async () => {
         mockedRepo.listRepositories.mockResolvedValue([dbRepo({ id: 1 }), dbRepo({ id: 2, slug: "backend" })])
         mockedSync.mockResolvedValue({ action: "cloned", localPath: "./repos/x" })
+        mockedInstall.mockResolvedValue({ passed: true, output: "" })
         mockedRepo.logCodebaseSync.mockResolvedValue(dbSyncLog())
 
         const logs = await repositoryService.syncRepository(1)
 
         expect(mockedSync).toHaveBeenCalledTimes(2)
+        expect(mockedInstall).toHaveBeenCalledTimes(2)
         expect(mockedRepo.logCodebaseSync).toHaveBeenCalledTimes(2)
         expect(logs).toHaveLength(2)
     })
