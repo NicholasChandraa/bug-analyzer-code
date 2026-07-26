@@ -7,6 +7,8 @@ import { env } from "./config/env.js"
 import { logger, type AppVariables } from "./utils/logger.js"
 import { authRoutes } from "./domains/auth/auth.routes.js"
 import { userRoutes } from "./domains/user/user.routes.js"
+import { repositoryRoutes } from "./domains/repository/repository.routes.js"
+import { triageRoutes } from "./domains/triage/triage.routes.js"
 
 /**
  * Hono application instance — routes, middleware, everything except the transport.
@@ -64,6 +66,8 @@ app.use(
 const routes = app
   .route("/api/auth", authRoutes)
   .route("/api/user", userRoutes)
+  .route("/api/repositories", repositoryRoutes)
+  .route("/api/triage", triageRoutes)
 
 app.get("/", (c) => c.json({ status: "ok" }))
 

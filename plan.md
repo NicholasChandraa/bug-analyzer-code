@@ -7,7 +7,7 @@ Detail keputusan arsitektur ada di `flow-bisnis.md` dan `DEVELOPMENT.md`. File i
 - [x] `repository.model.ts` — tabel `repositories`, `codebase_sync`
 - [x] `repository.repo.ts` — query layer (CRUD repositories, logCodebaseSync, getLastCodebaseSync)
 - [x] `repository.service.ts` — business logic manajemen repo & trigger git pull/clone + install dependency lewat Docker sandbox
-- [ ] `repository.routes.ts` — HTTP endpoints CRUD repo & sync (role-gated `admin`)
+- [x] `repository.routes.ts` — HTTP endpoints CRUD repo & sync (role-gated `admin`)
 
 ## Backend — domain `triage` (`backend/src/domains/triage/`)
 
@@ -29,7 +29,7 @@ Detail keputusan arsitektur ada di `flow-bisnis.md` dan `DEVELOPMENT.md`. File i
 
 ## Wiring
 
-- [ ] Register `repositoryRoutes` & `triageRoutes` di `hono-app.ts` (masih pending — `repository.routes.ts` juga belum dibuat)
+- [x] Register `repositoryRoutes` & `triageRoutes` di `hono-app.ts` (di-smoke-test: server boot normal, kedua route group respond 401 Unauthorized - bukan 404 - buat request tanpa auth)
 
 ## Frontend
 
