@@ -58,6 +58,17 @@ export const triageRoutes = new Hono<{ Variables: AppVariables }>()
             return handleError(c, e, "List messages failed")
         }
     })
+    .get("/bug-reports", requireAuth, async (c) => {
+        const user = c.get("user")
+        if (!user) return c.json({ error: "Unauthorized" }, 401)
+
+        try {
+            const bugReports = await triageService.listBugReports()
+            return c.json({ bugReports })
+        } catch (e) {
+            return handleError(c, e, "List bug reports failed")
+        }
+    })
 
     // Middleware zValidator ini yang bertugas mengecek apakah request berupa JSON dan apakah isinya cocok dengan CreateMessageSchema.
     .post("/chat-sessions/:id/messages", requireAuth, zValidator("json", CreateMessageSchema), async (c) => {

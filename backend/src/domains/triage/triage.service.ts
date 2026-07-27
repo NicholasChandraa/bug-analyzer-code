@@ -4,6 +4,7 @@ import type {
     CreateMessageRequestDTO,
     ChatSessionResponseDTO,
     MessageResponseDTO,
+    BugReportResponseDTO,
 } from "@restack/shared"
 
 import { env } from "../../config/env.js";
@@ -87,6 +88,22 @@ export const triageService = {
         await assertOwnership(chatSessionId, userId)
         const messages = await triageRepo.listMessagesByChatSession(chatSessionId)
         return messages.map(toMessageResponseDTO)
+    },
+
+    listBugReports: async (): Promise<BugReportResponseDTO[]> => {
+        const reports = await triageRepo.listBugReportsWithDetails()
+        return reports.map((r) => ({
+            id: r.id,
+            chatSessionId: r.chatSessionId,
+            repositoryId: r.repositoryId,
+            repositoryName: r.repositoryName,
+            filePath: r.filePath,
+            lineEstimate: r.lineEstimate,
+            reason: r.reason,
+            suggestedFix: r.suggestedFix,
+            status: r.status,
+            createdAt: r.createdAt.toISOString(),
+        }))
     },
 
     // Nyimpen message user, lalu invoke deep agent - `thread_id` = chatSessionId biar

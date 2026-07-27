@@ -16,9 +16,11 @@ export const RegisterSchema = z.object({
 
 /** TypeScript input Request DTO inferred from LoginSchema. */
 export type LoginRequestDTO = z.infer<typeof LoginSchema>
+export type LoginInput = LoginRequestDTO
 
 /** TypeScript input Request DTO inferred from RegisterSchema. */
 export type RegisterRequestDTO = z.infer<typeof RegisterSchema>
+export type RegisterInput = RegisterRequestDTO
 
 /** Response DTO returned by login/register/refresh endpoints. */
 export interface AuthResponseDTO {
