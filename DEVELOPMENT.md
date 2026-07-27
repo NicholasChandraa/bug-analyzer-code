@@ -5,15 +5,30 @@ This document outlines the architecture, build guidelines, and code conventions 
 ## Project Stack
 - **Frontend**: Next.js 16 (App Router)
 - **Backend**: Hono
-- **ORM**: Drizzle ORM
-- **Database**: PostgreSQL (Postgres-js driver)
-- **Validation**: Zod (shared schemas)
-- **Package Manager**: pnpm workspaces
+- **Engine** (being built, see `update.md`): Python + FastAPI — hosts the LangGraph/DeepAgents agent and its tools
+- **ORM**: Drizzle ORM (backend only — engine talks to Postgres only for its own LangGraph checkpointer tables)
+- **Database**: PostgreSQL (Postgres-js driver on backend)
+- **Validation**: Zod (shared schemas, backend/frontend only — engine uses Pydantic for its own request/response models)
+- **Package Manager**: pnpm workspaces (backend/frontend); engine has its own Python dependency file (`requirements.txt` or equivalent), not part of the pnpm workspace
 
 ## Monorepo Layout
 - `frontend/` — Next.js 16 App Router
-- `backend/` — Hono API
-- `packages/shared/` — Shared Zod schemas (the single source of truth)
+- `backend/` — Hono API — auth, user, repository, and the thin/relaying half of triage (chat CRUD + SSE)
+- `engine/` (being built) — Python/FastAPI service — the LangGraph/DeepAgents reasoning loop and ALL its
+  tools natively in Python (ripgrep, git, and the Docker-sandboxed tsc/lint/test verification loop);
+  sibling to `frontend`/`backend`, not a pnpm workspace member
+- `packages/shared/` — Shared Zod schemas (source of truth for backend↔frontend contracts only)
+
+## Service Boundaries (3-service system)
+- `frontend` talks ONLY to `backend` — never directly to `engine`. This preserves the `hc<AppType>`
+  monorepo type-import trick for the whole frontend↔backend contract, engine migration or not.
+- `backend` → `engine`: one call, to invoke the agent for a chat message; `backend` relays whatever
+  `engine` streams back to the frontend as SSE without needing to understand LangGraph's internal state shape.
+- `engine` → `backend`: two narrow HTTP calls only — resolve a repo slug to its local path/metadata, and
+  submit a finished bug report. `engine`'s only direct database dependency is its own LangGraph Postgres
+  checkpointer table(s); it never touches the Drizzle-owned tables directly.
+- Nothing else calls in the reverse direction. If you find yourself wiring a third cross-service call,
+  reconsider — the boundary is meant to stay this narrow.
 
 ## Build and Dev Commands
 All commands should be run from the repository root:
@@ -24,6 +39,9 @@ All commands should be run from the repository root:
 - `pnpm --filter backend db:push` — Push Drizzle schema to PostgreSQL database
 - `pnpm --filter backend db:studio` — Open Drizzle Studio database viewer
 - `pnpm --filter backend test` — Run Vitest tests
+- `engine/` (once scaffolded) has its own commands outside pnpm — e.g. `uvicorn main:app --reload` for the
+  dev server, run from inside `engine/` with its own Python virtualenv activated. Document the exact
+  commands here once the first `engine/` scaffold lands.
 
 ## Architecture Rules: Semi-DDD (Feature-Driven)
 Code is organized by business domain/feature, not by file type.
@@ -36,6 +54,8 @@ Each domain has 4 primary files:
 - `[feature].model.ts` — Drizzle table definitions
 
 **Cross-Domain Dependency Rule**: The `auth` domain may import from `user` (e.g. `usersTable` from `user.model.ts`). The `triage` domain may import from `repository` (e.g. `repositoriesTable` from `repository.model.ts`). The reverse dependencies (e.g., user importing from auth, or repository importing from triage) are STRICTLY FORBIDDEN.
+
+**`triage.agent.ts`/`triage.tools.ts` are transitional**: this in-process TypeScript agent is being migrated to the Python `engine/` service (see `update.md`). Don't grow it with new tools/capabilities — add those to the Python engine instead once it exists. `triage.service.ts`/`triage.routes.ts` (chat CRUD + SSE relay) are NOT transitional — they stay in TypeScript permanently.
 
 
 ### Frontend Layout (`frontend/domains/[feature]/`)

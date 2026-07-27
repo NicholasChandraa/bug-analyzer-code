@@ -8,11 +8,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 product lets a user describe a bug (text + screenshot) in a chat UI; a LangGraph agent classifies it,
 greps across one or more registered git repos on the server disk, and drafts a suggested fix, streamed
 back over SSE and saved to an internal dashboard. See `flow-bisnis.md` for the full business flow/architecture
-rationale and `plan.md` for the current implementation checklist (both in Indonesian). `DEVELOPMENT.md` is
-the authoritative architecture/convention doc — read it before making structural changes.
+rationale, `update.md` for the in-progress TS→Python Engine migration design, and `plan.md` for the current
+implementation checklist (all in Indonesian). `DEVELOPMENT.md` is the authoritative architecture/convention
+doc — read it before making structural changes.
+
+**This is (becoming) a 3-service system, not a 2-tier frontend/backend app:**
+- `frontend/` — Next.js 16, talks ONLY to `backend/` (never directly to `engine/`).
+- `backend/` — Hono. Owns `auth`, `user`, `repository` (incl. Docker-sandboxed `pnpm install` on sync), and
+  a slimmed-down `triage` domain: `chat_sessions`/`messages`/`bug_reports` CRUD + the SSE endpoint the
+  frontend talks to. It no longer runs the agent itself — it forwards the request to `engine/` and relays
+  whatever `engine/` streams back.
+- `engine/` (Python/FastAPI, **being built** — see `update.md`) — owns the actual LangGraph/DeepAgents
+  reasoning loop AND all agent tools natively in Python (ripgrep search, file read, git log/blame, and the
+  Docker-sandboxed `tsc`/lint/test verification loop — all reimplemented with `subprocess`, not delegated
+  back to `backend/`). Its only direct database dependency is its own LangGraph Postgres checkpointer
+  table(s); everything else (resolving a repo slug to a local path, submitting a finished bug report) goes
+  through small HTTP calls to `backend/`, so `engine/` never needs to know the Drizzle schema.
+- Dependency direction is one-way except for two narrow HTTP touchpoints: `backend` → `engine` to invoke the
+  agent for a message, and `engine` → `backend` to resolve repo info / submit a bug report. Never the
+  opposite for anything else.
+
+The TypeScript `triage.agent.ts`/`triage.tools.ts` (and the `tsc_no_emit`/`run_linter_and_tests` half of
+`infra/verification/sandbox.ts`, plus `infra/code-search/ripgrep.ts` and `git-history.ts`) are being
+**ported to `engine/` and will eventually be deleted from `backend/`** — don't extend them for new agent
+capabilities; add those to the Python engine instead once it exists. `infra/code-search/git.ts` and
+`installDependencies()` in `sandbox.ts` stay in `backend/` permanently (they belong to the admin-triggered
+repository-sync flow, not to anything the agent invokes).
 
 Stack: Next.js 16 (App Router) frontend, Hono backend, Drizzle ORM + PostgreSQL, Zod schemas shared via
-`@restack/shared`, pnpm workspaces (`frontend`, `backend`, `packages/*`). Node >= 20.
+`@restack/shared`, pnpm workspaces (`frontend`, `backend`, `packages/*`), Node >= 20 — plus a Python/FastAPI
+`engine/` service (LangGraph + `deepagents`-equivalent Python packages) once built.
 
 ## Commands
 
@@ -59,12 +84,12 @@ structure directly in `app/`; delegate to domain components.
 - `auth` may import from `user` (e.g. `usersTable`). The reverse is forbidden.
 - `triage` may import from `repository` (e.g. `repositoriesTable`). The reverse is forbidden.
 
-Current domains: `auth`, `user` (complete). `repository` has model/repo/service done (`repository.service.ts`
-wraps `infra/code-search/git.ts` for clone/pull) but no `routes.ts` yet. `triage` only has model/repo — its
-service, LangGraph agent, and routes are still on the `plan.md` checklist. Neither `repository` nor `triage`
-is mounted in `hono-app.ts` yet (only `auth`/`user` routes are `.route()`'d there today). `plan.md`'s checklist
-lags actual code in places (e.g. it still shows `repository.service.ts` and the `infra/code-search/*` files
-as unchecked) — when in doubt, check the filesystem over the checklist.
+Current domains: `auth`, `user`, `repository`, `triage` all have model/repo/service/routes and are mounted
+in `hono-app.ts`. `triage`'s agent/tools currently still run in-process in TypeScript
+(`triage.agent.ts`/`triage.tools.ts`, single-agent DeepAgents harness) — this is the code actively being
+migrated to the Python `engine/` service (see the 3-service note above and `update.md`); treat it as
+**working but transitional**, not the long-term home for agent logic. `plan.md`'s checklist can lag actual
+code — when in doubt, check the filesystem over the checklist.
 
 ### Backend entry points
 
@@ -96,13 +121,14 @@ OpenAI itself) — switching providers is an env-var change, never a code change
 incompatible provider (native Claude/Gemini tool-calling without a compat layer) would need a new branch
 using that provider's own `@langchain/*` integration package.
 
-`backend/src/infra/code-search/` is the foundation the not-yet-built `triage.agent.ts` tools will call:
+`backend/src/infra/code-search/`:
 - `git.ts` — `syncRepository()` clones if `localPath/.git` doesn't exist, otherwise fetches + checks out +
   pulls `defaultBranch`. This is the only file allowed to touch `simple-git`; `repository.service.ts` calls
-  it and never imports `simple-git` directly.
-- `ripgrep.ts` — `searchAcrossRepos()` shells out to `@vscode/ripgrep`'s `rgPath` via `execFile` (argv array,
-  no shell interpolation) with `--fixed-strings`, so LLM-extracted search keywords (untrusted input) can
-  never be interpreted as a regex or used for command injection.
+  it and never imports `simple-git` directly. **Stays in TypeScript permanently** — part of the
+  admin-triggered repository-sync flow, not agent tooling.
+- `ripgrep.ts` / `git-history.ts` — back the TS `triage.tools.ts`'s `ripgrep_search`/`git_log_blame`/
+  `trace_dependencies` tools today. **Being ported to the Python `engine/` service** (native `subprocess`
+  calls to `rg`/`git` there) — don't add new capabilities here, add them to the Python port instead.
 
 ### Auth & cookies
 

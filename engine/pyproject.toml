@@ -1,0 +1,20 @@
+[project]
+name = "engine"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "deepagents",
+    "fastapi>=0.140.2",
+    "gitpython",
+    "granian[reload]>=2.7.9",
+    "httpx",
+    "langchain",
+    "langchain-core",
+    "langchain-openai",
+    "langgraph-checkpoint-postgres",
+    "pydantic-settings",
+    "uvloop>=0.22.1 ; sys_platform != 'win32'",
+    "winloop>=0.6.3 ; sys_platform == 'win32'",
+]
