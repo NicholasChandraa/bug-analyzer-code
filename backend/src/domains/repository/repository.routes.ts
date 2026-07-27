@@ -71,6 +71,27 @@ export const repositoryRoutes = new Hono<{ Variables: AppVariables }>()
             return handleError(c, e, "Sync repository failed")
         }
     })
+    // --- Endpoint internal buat Engine (Python) - SENGAJA gak di-requireAuth/requireRole,
+    // Engine gak pernah pegang JWT user. Operational: jangan expose endpoint ini ke internet
+    // publik (firewall/reverse-proxy allowlist pas deploy) - lihat DEVELOPMENT.md.
+    .get("/internal/by-slug/:slug", async (c) => {
+        try {
+            const repository = await repositoryService.resolveRepositoryBySlugInternal(c.req.param("slug"))
+            return c.json({ repository })
+        } catch (e) {
+            return handleError(c, e, "Internal resolve repository by slug failed")
+        }
+    })
+    .get("/internal", async (c) => {
+        const slugsParam = c.req.query("slugs")
+        const slugs = slugsParam ? slugsParam.split(",").map((s) => s.trim()).filter(Boolean) : undefined
+        try {
+            const repositories = await repositoryService.listRepositoriesInternal(slugs)
+            return c.json({ repositories })
+        } catch (e) {
+            return handleError(c, e, "Internal list repositories failed")
+        }
+    })
     .get("/:id", requireAuth, requireRole("admin"), async (c) => {
         const id = Number(c.req.param("id"))
         if (Number.isNaN(id)) return c.json({ error: "Invalid repository id" }, 400)

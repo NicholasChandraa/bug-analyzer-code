@@ -125,6 +125,21 @@ export const repositoryService = {
         return log ? toCodebaseSyncResponseDTO(log) : null
     },
 
+    // --- Internal endpoints (dipanggil Engine, gak lewat requireAuth/requireRole - lihat catatan
+    // di repository.routes.ts) ---
+    resolveRepositoryBySlugInternal: async (slug: string): Promise<RepositoryResponseDTO> => {
+        const repo = await repositoryRepo.getRepositoryBySlug(slug)
+        if (!repo) throw new RepositoryNotFoundError(`Repository dengan slug "${slug}" belum terdaftar`)
+        return toRepositoryResponseDTO(repo)
+    },
+
+    listRepositoriesInternal: async (slugs?: string[]): Promise<RepositoryResponseDTO[]> => {
+        const repos = (slugs && slugs.length > 0)
+            ? (await Promise.all(slugs.map((s) => repositoryRepo.getRepositoryBySlug(s)))).filter((r): r is RepositoryRow => r !== null)
+            : await repositoryRepo.listRepositories()
+        return repos.map(toRepositoryResponseDTO)
+    },
+
     browseDirectories: async (targetPath?: string): Promise<BrowseDirectoriesResponseDTO> => {
         const rootDir = process.cwd()
         const resolvedPath = targetPath ? path.resolve(targetPath) : rootDir

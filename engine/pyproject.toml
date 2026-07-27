@@ -7,14 +7,21 @@ requires-python = ">=3.13"
 dependencies = [
     "deepagents",
     "fastapi>=0.140.2",
-    "gitpython",
     "granian[reload]>=2.7.9",
     "httpx",
     "langchain",
     "langchain-core",
     "langchain-openai",
     "langgraph-checkpoint-postgres",
+    "psycopg[binary,pool]>=3.3",
     "pydantic-settings",
     "uvloop>=0.22.1 ; sys_platform != 'win32'",
     "winloop>=0.6.3 ; sys_platform == 'win32'",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]

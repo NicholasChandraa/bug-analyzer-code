@@ -5,6 +5,7 @@ import type {
     ChatSessionResponseDTO,
     MessageResponseDTO,
     BugReportResponseDTO,
+    SubmitBugReportInternalRequestDTO,
 } from "@restack/shared"
 
 import { env } from "../../config/env.js";
@@ -147,5 +148,19 @@ export const triageService = {
     saveAssistantMessage: async (chatSessionId: number, content: string): Promise<void> => {
         if (!content) return
         await triageRepo.addMessage({ chatSessionId, role: "assistant", content, imageUrl: null })
+    },
+
+    // Endpoint internal buat Engine (Python) - tool submit_bug_report manggil ini lewat HTTP,
+    // bukan tulis ke tabel bug_reports langsung (Engine gak pernah nyentuh tabel Drizzle).
+    submitBugReportInternal: async (data: SubmitBugReportInternalRequestDTO): Promise<{ bugReportId: number }> => {
+        const report = await triageRepo.createdBugReport({
+            chatSessionId: data.chatSessionId,
+            repositoryId: data.repositoryId,
+            filePath: data.filePath,
+            lineEstimate: data.lineEstimate ?? null,
+            reason: data.reason,
+            suggestedFix: data.suggestedFix,
+        })
+        return { bugReportId: report.id }
     },
 }

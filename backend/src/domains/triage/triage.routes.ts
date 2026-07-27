@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { zValidator } from "@hono/zod-validator";
-import { CreateChatSessionSchema, CreateMessageSchema } from "@restack/shared";
+import { CreateChatSessionSchema, CreateMessageSchema, SubmitBugReportInternalSchema } from "@restack/shared";
 import { requireAuth } from "../../infra/middlewares/require-auth.js";
 import { triageService, ChatSessionNotFoundError } from "./triage.service.js";
 import { logger, type AppVariables } from "../../utils/logger.js";
@@ -67,6 +67,18 @@ export const triageRoutes = new Hono<{ Variables: AppVariables }>()
             return c.json({ bugReports })
         } catch (e) {
             return handleError(c, e, "List bug reports failed")
+        }
+    })
+
+    // Endpoint internal buat Engine (Python) - tool submit_bug_report manggil ini. SENGAJA gak
+    // di-requireAuth, Engine gak pernah pegang JWT user. Operational: jangan expose ke internet
+    // publik (firewall/reverse-proxy allowlist pas deploy) - lihat DEVELOPMENT.md.
+    .post("/internal/bug-reports", zValidator("json", SubmitBugReportInternalSchema), async (c) => {
+        try {
+            const result = await triageService.submitBugReportInternal(c.req.valid("json"))
+            return c.json(result, 201)
+        } catch (e) {
+            return handleError(c, e, "Internal submit bug report failed")
         }
     })
 

@@ -32,6 +32,20 @@ export const UpdateBugReportStatusSchema = z.object({
 export type UpdateBugReportStatusRequestDTO = z.infer<typeof UpdateBugReportStatusSchema>
 
 /**
+ * Zod validation schema buat endpoint internal submit_bug_report (dipanggil Engine, bukan user).
+ */
+export const SubmitBugReportInternalSchema = z.object({
+    chatSessionId: z.number().int().positive(),
+    repositoryId: z.number().int().positive(),
+    filePath: z.string().min(1),
+    lineEstimate: z.string().nullable().optional(),
+    reason: z.string().min(1),
+    suggestedFix: z.string().min(1),
+})
+
+export type SubmitBugReportInternalRequestDTO = z.infer<typeof SubmitBugReportInternalSchema>
+
+/**
  * Bentuk Response DTO publik yang dikembalikan endpoint triage ke frontend
  */
 export interface ChatSessionResponseDTO {
