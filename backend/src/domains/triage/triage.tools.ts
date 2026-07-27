@@ -7,21 +7,18 @@ import { triageRepo } from "./triage.repo.js";
 import { searchAcrossRepos } from "../../infra/code-search/ripgrep.js";
 import { getFileBlame, getFileLog } from "../../infra/code-search/git-history.js";
 import { runTypeCheck, runLinterAndTests } from "../../infra/verification/sandbox.js";
+import { validatePathBoundary } from "../../infra/security/path-guard.js";
 import { logger } from "../../utils/logger.js";
 
-/**
- * Mengonversi `slug` repositori menjadi path direktori lokal tempat repositori disimpan di disk.
- * 
- * @param slug - Identifier unik repositori (misal: "backend", "frontend")
- * @returns Path mutlak ke direktori lokal repositori
- * @throws Error jika repositori dengan slug tersebut tidak ditemukan di database
- */
-async function resolveRepoPath(slug: string): Promise<string> {
-    logger.info({ slug }, "Memproses resolveRepoPath untuk slug")
-
+async function resolveRepo(slug: string): Promise<RepositoryRow> {
     const repo = await repositoryRepo.getRepositoryBySlug(slug)
     if (!repo) throw new Error(`Repository dengan slug "${slug}" belum terdaftar`)
+    return repo
+}
 
+async function resolveRepoPath(slug: string): Promise<string> {
+    logger.info({ slug }, "Memproses resolveRepoPath untuk slug")
+    const repo = await resolveRepo(slug)
     return repo.localPath
 }
 
@@ -54,19 +51,9 @@ async function resolveRepoPaths(slugs?: string[]): Promise<{ slug: string; local
  * @throws Error jika path mencoba mengakses file di luar root repositori
  */
 function resolveSafePath(localPath: string, filePath: string): string {
-    const root = path.resolve(localPath)
-    const resolved = path.resolve(root, filePath)
-
-    if (resolved !== root && !resolved.startsWith(root + path.sep)) {
-        throw new Error(`Path "${filePath}" berada di luar direktori root repositori`)
-    }
-
-    return resolved
+    return validatePathBoundary(filePath, localPath)
 }
 
-/**
- * Tool AI Agent: Mencari kata kunci/teks secara harfiah di seluruh file repositori menggunakan ripgrep.
- */
 export const ripgrepSearchTool = tool(
     async ({ query, repoSlugs }: { query: string; repoSlugs?: string[] }) => {
         const repos = await resolveRepoPaths(repoSlugs)
@@ -174,8 +161,9 @@ export const traceDependenciesTool = tool(
  */
 export const tscNoEmitTool = tool(
     async ({ repoSlug }: { repoSlug: string }) => {
-        const localPath = await resolveRepoPath(repoSlug)
-        const result = await runTypeCheck(localPath)
+        const repo = await resolveRepo(repoSlug)
+        const isLocalMode = repo.sourceType === "local"
+        const result = await runTypeCheck(repo.localPath, isLocalMode)
         return result.passed ? "Pemeriksaan tipe data TypeScript berhasil dengan 0 error." : result.output
     },
     {
@@ -190,8 +178,9 @@ export const tscNoEmitTool = tool(
  */
 export const runLinterAndTestsTool = tool(
     async ({ repoSlug }: { repoSlug: string }) => {
-        const localPath = await resolveRepoPath(repoSlug)
-        const result = await runLinterAndTests(localPath)
+        const repo = await resolveRepo(repoSlug)
+        const isLocalMode = repo.sourceType === "local"
+        const result = await runLinterAndTests(repo.localPath, isLocalMode)
         return result.passed ? "Skrip linter dan pengujian (test) berhasil." : result.output
     },
     {
@@ -223,8 +212,8 @@ export const submitBugReportTool = tool(
         const chatSessionId = Number(runtime.config.configurable?.thread_id)
         if (!chatSessionId) throw new Error("thread_id tidak ditemukan di runtime config - gak bisa nyimpen bug report")
 
-        const repo = await repositoryRepo.getRepositoryBySlug(repoSlug)
-        if (!repo) throw new Error(`Repository dengan slug "${repoSlug}" belum terdaftar`)
+        const repo = await resolveRepo(repoSlug)
+        resolveSafePath(repo.localPath, filePath)
 
         await triageRepo.createdBugReport({
             chatSessionId,

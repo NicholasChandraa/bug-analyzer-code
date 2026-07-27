@@ -38,7 +38,15 @@ export const repositoryRoutes = new Hono<{ Variables: AppVariables }>()
             return handleError(c, e, "List repositories failed")
         }
     })
-    // Registrasi sebelum "/:id" biar "sync" gak ketangkep sebagai dynamic param :id.
+    .get("/browse-dirs", requireAuth, requireRole("admin"), async (c) => {
+        const targetPath = c.req.query("path")
+        try {
+            const result = await repositoryService.browseDirectories(targetPath)
+            return c.json(result)
+        } catch (e) {
+            return c.json({ error: e instanceof Error ? e.message : "Failed to browse directories" }, 400)
+        }
+    })
     .get("/sync/last", requireAuth, requireRole("admin"), async (c) => {
         const repositoryIdParam = c.req.query("repositoryId")
         const repositoryId = repositoryIdParam ? Number(repositoryIdParam) : undefined

@@ -1,4 +1,12 @@
-import type { CreateRepositoryRequestDTO, UpdateRepositoryRequestDTO, RepositoryResponseDTO, CodebaseSyncResponseDTO } from "@restack/shared"
+import fs from "fs"
+import path from "path"
+import type {
+  CreateRepositoryRequestDTO,
+  UpdateRepositoryRequestDTO,
+  RepositoryResponseDTO,
+  CodebaseSyncResponseDTO,
+  BrowseDirectoriesResponseDTO,
+} from "@restack/shared"
 
 import { repositoryRepo, type RepositoryRow, type CodebaseSyncRow } from "./repository.repo.js"
 import { syncRepository as syncRepositoryOnDisk } from "../../infra/code-search/git.js"
@@ -11,6 +19,7 @@ const toRepositoryResponseDTO = (repo: RepositoryRow): RepositoryResponseDTO => 
     id: repo.id,
     name: repo.name,
     slug: repo.slug,
+    sourceType: repo.sourceType,
     repoUrl: repo.repoUrl,
     localPath: repo.localPath,
     defaultBranch: repo.defaultBranch,
@@ -34,6 +43,14 @@ export const repositoryService = {
         const existing = await repositoryRepo.getRepositoryBySlug(data.slug)
         if (existing) throw new DuplicateSlugError(`Slug "${data.slug}" is already in use`)
 
+        // Validate local path existence if local mode
+        if (data.sourceType === "local") {
+            const resolved = path.resolve(data.localPath)
+            if (!fs.existsSync(resolved)) {
+                throw new Error(`Local directory "${data.localPath}" does not exist on host PC`)
+            }
+        }
+
         const repo = await repositoryRepo.createRepository(data)
         return toRepositoryResponseDTO(repo)
     },
@@ -55,6 +72,13 @@ export const repositoryService = {
             if (existing && existing.id !== id) throw new DuplicateSlugError(`Slug "${data.slug}" is already in use`)
         }
 
+        if (data.localPath) {
+            const resolved = path.resolve(data.localPath)
+            if (!fs.existsSync(resolved)) {
+                throw new Error(`Local directory "${data.localPath}" does not exist on host PC`)
+            }
+        }
+
         const repo = await repositoryRepo.updateRepository(id, data)
         if (!repo) throw new RepositoryNotFoundError("Repository not found")
         return toRepositoryResponseDTO(repo)
@@ -65,15 +89,6 @@ export const repositoryService = {
         if (!deleted) throw new RepositoryNotFoundError("Repository not found")
     },
 
-    // Syncs repo(s) dalam disk (clone/pull via git.ts) lalu mencatat baris log per repo yang disinkronisasikan.
-    // `repositoryId` undefined means sync-all: setiap repos yang didaftarkan adalah sync berurutan,
-    // each still gets its own log row (not one shared "bulk" row) because logCodebaseSync is
-    // also what updates that repo's lastSyncedAt — skipping it would leave the dashboard's
-    // per-repo timestamps stale after a sync-all. Fails fast: one repo failing aborts the rest.
-    //
-    // Install dependency (`pnpm install`) juga di sini, tapi dijalanin di dalam sandbox Docker
-    // (infra/verification/sandbox.ts) - bukan langsung di host - biar postinstall script yang
-    // jahat dari repo target gak bisa nyentuh disk server, cuma folder repo itu sendiri.
     syncRepository: async (userId: number, repositoryId?: number): Promise<CodebaseSyncResponseDTO[]> => {
         const targets = repositoryId
             ? [await repositoryRepo.getRepositoryById(repositoryId)]
@@ -84,10 +99,20 @@ export const repositoryService = {
         const logs: CodebaseSyncResponseDTO[] = []
         for (const repo of targets) {
             if (!repo) continue
-            await syncRepositoryOnDisk({ repoUrl: repo.repoUrl, localPath: repo.localPath, defaultBranch: repo.defaultBranch })
 
-            const install = await installDependencies(repo.localPath)
-            if (!install.passed) throw new Error(`Dependency install gagal buat repo "${repo.slug}": ${install.output}`)
+            if (repo.sourceType === "local") {
+                // Local PC mode: Skip git clone and Docker pnpm install, verify local directory exists
+                const resolved = path.resolve(repo.localPath)
+                if (!fs.existsSync(resolved)) {
+                    throw new Error(`Folder lokal PC "${repo.localPath}" tidak ditemukan`)
+                }
+            } else {
+                // Remote GitHub mode: git clone/pull and Docker sandbox pnpm install
+                await syncRepositoryOnDisk({ repoUrl: repo.repoUrl, localPath: repo.localPath, defaultBranch: repo.defaultBranch })
+
+                const install = await installDependencies(repo.localPath)
+                if (!install.passed) throw new Error(`Dependency install gagal buat repo "${repo.slug}": ${install.output}`)
+            }
 
             const log = await repositoryRepo.logCodebaseSync(userId, repo.id)
             logs.push(toCodebaseSyncResponseDTO(log))
@@ -98,5 +123,34 @@ export const repositoryService = {
     getLastCodebaseSync: async (repositoryId?: number): Promise<CodebaseSyncResponseDTO | null> => {
         const log = await repositoryRepo.getLastCodebaseSync(repositoryId)
         return log ? toCodebaseSyncResponseDTO(log) : null
+    },
+
+    browseDirectories: async (targetPath?: string): Promise<BrowseDirectoriesResponseDTO> => {
+        const rootDir = process.cwd()
+        const resolvedPath = targetPath ? path.resolve(targetPath) : rootDir
+
+        let entries: fs.Dirent[]
+        try {
+            entries = await fs.promises.readdir(resolvedPath, { withFileTypes: true })
+        } catch {
+            throw new Error(`Directory "${resolvedPath}" does not exist or is not readable`)
+        }
+
+        const directories = entries
+            .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+            .map((e) => ({
+                name: e.name,
+                path: path.join(resolvedPath, e.name).replace(/\\/g, "/"),
+            }))
+
+        const normalizedCurrent = resolvedPath.replace(/\\/g, "/")
+        const parent = path.dirname(resolvedPath)
+        const normalizedParent = parent !== resolvedPath ? parent.replace(/\\/g, "/") : null
+
+        return {
+            currentPath: normalizedCurrent,
+            parentPath: normalizedParent,
+            directories,
+        }
     },
 }

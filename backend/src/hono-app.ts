@@ -1,6 +1,7 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { csrf } from "hono/csrf"
+import { HTTPException } from "hono/http-exception"
 import { logger as honoLogger } from "hono/logger"
 import { requestId } from "hono/request-id"
 import { env } from "./config/env.js"
@@ -71,5 +72,38 @@ const routes = app
 
 app.get("/", (c) => c.json({ status: "ok" }))
 
+// Global 404 Not Found handler for JSON responses
+app.notFound((c) => {
+  return c.json({ error: "Route not found" }, 404)
+})
+
+// Global Error handler: transforms HTTPExceptions (like CSRF 403) and unhandled errors into JSON
+app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    if (err.status === 403) {
+      return c.json(
+        {
+          error: "Forbidden: CSRF validation failed. Invalid or missing Origin header.",
+        },
+        403
+      )
+    }
+    return c.json({ error: err.message || "HTTP Exception" }, err.status)
+  }
+
+  const reqLogger = c.get("logger") || logger
+  reqLogger.error({ err: err.message, stack: err.stack }, "Unhandled error")
+
+  return c.json(
+    {
+      error: "Internal server error",
+      message: env.NODE_ENV === "development" ? err.message : undefined,
+    },
+    500
+  )
+})
+
 export type AppType = typeof routes
+
+
 

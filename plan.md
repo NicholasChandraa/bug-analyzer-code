@@ -33,8 +33,8 @@ Detail keputusan arsitektur ada di `flow-bisnis.md` dan `DEVELOPMENT.md`. File i
 
 ## Frontend
 
-- [ ] Selector repositori & Halaman chat (kirim message + image + pilih target repo, konsumsi SSE)
-- [ ] Dashboard internal (list bug report per repo, role-gated `admin`, manajemen repo + tombol "Update Codebase" & timestamp last synced)
+- [x] Selector repositori & Halaman chat (kirim message + image + pilih target repo, konsumsi SSE)
+- [x] Dashboard internal (list bug report per repo, role-gated `admin`, manajemen repo + tombol "Update Codebase" & timestamp last synced)
 
 ## Fondasi (Selesai)
 

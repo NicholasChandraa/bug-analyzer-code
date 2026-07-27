@@ -1,16 +1,19 @@
-import { pgTable, serial, integer, text, timestamp } from "drizzle-orm/pg-core"
+import { pgTable, serial, integer, text, timestamp, pgEnum } from "drizzle-orm/pg-core"
 import { usersTable } from "../user/user.model.js"
+
+export const repositorySourceTypeEnum = pgEnum("repository_source_type", ["remote", "local"])
 
 /**
  * Repositories Table Schema
- * Mengelola daftar repositori yang dipindai oleh AI Agent (e.g. frontend, backend)
+ * Mengelola daftar repositori yang dipindai oleh AI Agent (e.g. remote github atau local pc folder)
  */
 export const repositoriesTable = pgTable("repositories", {
     id: serial("id").primaryKey(),
-    name: text("name").notNull(), // Display name, e.g. "Frontend App"
-    slug: text("slug").notNull().unique(), // Key unik, e.g. "frontend"
-    repoUrl: text("repo_url").notNull(), // Git clone URL atau remote path
-    localPath: text("local_path").notNull(), // Folder path di disk VPS/lokal tempat ripgrep mencari
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    sourceType: repositorySourceTypeEnum("source_type").notNull().default("remote"),
+    repoUrl: text("repo_url").notNull().default(""),
+    localPath: text("local_path").notNull(),
     defaultBranch: text("default_branch").notNull().default("main"),
     lastSyncedAt: timestamp("last_synced_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
