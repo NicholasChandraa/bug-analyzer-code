@@ -21,7 +21,12 @@ import {
   X,
 } from "lucide-react"
 
+import { useSearchParams } from "next/navigation"
+
 export function ChatInterface() {
+  const searchParams = useSearchParams()
+  const urlRepoId = searchParams.get("repoId")
+
   const { repositories, loading: loadingRepos } = useRepositories()
   const {
     sessions,
@@ -35,14 +40,22 @@ export function ChatInterface() {
     sendMessage,
   } = useTriageChat()
 
-  const [selectedRepoId, setSelectedRepoId] = useState<number | null>(null)
+  // User explicit selection in dropdown overrides URL search param
+  const [userSelectedRepoId, setUserSelectedRepoId] = useState<number | null | undefined>(undefined)
   const [inputText, setInputText] = useState("")
   const [imageUrl, setImageUrl] = useState("")
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Derived selected repo id if not explicitly set
-  const currentSelectedRepoId = selectedRepoId ?? (repositories.length > 0 ? repositories[0].id : null)
+  // Derived selected repo id (derived state pattern - always targets a specific repo)
+  const currentSelectedRepoId =
+    userSelectedRepoId !== undefined
+      ? userSelectedRepoId
+      : urlRepoId && !Number.isNaN(Number(urlRepoId))
+      ? Number(urlRepoId)
+      : repositories.length > 0
+      ? repositories[0].id
+      : null
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -148,7 +161,7 @@ export function ChatInterface() {
           <RepoSelector
             repositories={repositories}
             selectedRepoId={currentSelectedRepoId}
-            onSelectRepo={setSelectedRepoId}
+            onSelectRepo={setUserSelectedRepoId}
             disabled={isStreaming || loadingRepos}
           />
         </div>

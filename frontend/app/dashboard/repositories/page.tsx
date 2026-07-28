@@ -6,7 +6,7 @@ import { ArrowLeft, MessageSquare } from "lucide-react"
 
 export default function RepositoriesPage() {
   return (
-    <RequireAuth font-mono>
+    <RequireAuth requiredRole="admin">
       <main className="min-h-screen bg-muted/20 p-6">
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">

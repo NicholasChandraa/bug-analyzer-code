@@ -1,24 +1,68 @@
 import Image from "next/image"
 import { RegisterForm } from "@/domains/auth/components/register-form"
 import logo from "@/public/logo.png"
+import darkHeroBg from "@/public/dark-hero-bg.jpg"
+import mascotRegisterImg from "@/public/mascot-register.jpg"
 
 /**
  * Next.js Router Page: Register
- * 
- * Semi-DDD rules:
- * - Files in `frontend/app/` are strictly for layout, routing config, metadata, or entry gates.
- * - Do not implement custom JSX layouts, forms, state, or complex components here.
- * - Always import and delegate rendering to domain feature components (e.g. `<RegisterForm />`).
+ * Clean split-screen layout featuring the dynamic 3D Mini Astronaut artwork for Register page.
  */
 export default function RegisterPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-muted/40 px-4">
-      <div className="mb-8 text-center flex flex-col items-center">
-        <Image src={logo} alt="Logo" className="w-12 h-auto mb-3 object-contain" priority />
-        <h1 className="text-2xl font-semibold tracking-tight">RestackPattern</h1>
-        <p className="text-sm text-muted-foreground mt-1">Full-stack monorepo starter</p>
+    <main className="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-background">
+      {/* Left Branding Showcase Column */}
+      <div className="lg:col-span-6 xl:col-span-6 bg-slate-950 text-white relative overflow-hidden flex flex-col justify-between p-8 sm:p-10 lg:p-14 border-r border-slate-800/60">
+        {/* Subtle Ambient Background Texture */}
+        <Image
+          src={darkHeroBg}
+          alt="Abstract ambient background"
+          fill
+          className="object-cover object-center opacity-20 mix-blend-luminosity pointer-events-none"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-950/90 to-slate-950 pointer-events-none" />
+
+        {/* Top Branding Header - Left Aligned */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm">
+            <Image src={logo} alt="Logo" className="w-7 h-7 object-contain" priority />
+          </div>
+          <span className="text-xl font-bold tracking-tight text-white">Smart Bug Triage</span>
+        </div>
+
+        {/* Center Hero Content Block - Centered Container with Left-Aligned Text */}
+        <div className="relative z-10 my-auto py-6 space-y-5 max-w-md mx-auto w-full">
+          <div className="space-y-3 text-left">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] text-white">
+              Mulai Analisis Kode <span className="text-amber-500">Berbasis AI.</span>
+            </h1>
+            <p className="text-sm sm:text-base text-slate-400 leading-relaxed font-normal">
+              Daftarkan akun untuk mengelola repositori, mengirimkan laporan bug interaktif, dan melihat rekomendasi patch terverifikasi secara instan.
+            </p>
+          </div>
+
+          {/* Dedicated Register Mascot Image Card (Dynamic Mini Astronaut) */}
+          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-slate-900/40 w-full">
+            <Image
+              src={mascotRegisterImg}
+              alt="Cute 3D AI Astronaut Mascot"
+              className="w-full h-auto max-h-[300px] object-cover object-center rounded-2xl"
+              priority
+            />
+          </div>
+        </div>
+
+        {/* Minimalist Footer */}
+        <div className="relative z-10 border-t border-white/10 pt-4 text-xs text-slate-500">
+          Smart Bug Triage AI Platform &bull; Autonomous Agent Engine
+        </div>
       </div>
-      <RegisterForm />
+
+      {/* Right Form Column */}
+      <div className="lg:col-span-6 xl:col-span-6 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-background">
+        <RegisterForm />
+      </div>
     </main>
   )
 }

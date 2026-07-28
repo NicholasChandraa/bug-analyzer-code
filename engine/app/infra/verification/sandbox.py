@@ -12,21 +12,19 @@ from app.infra.security.path_guard import validate_path_boundary
 
 TIMEOUT_SECONDS = 5 * 60
 MAX_OUTPUT_BYTES = 10 * 1024 * 1024
-SANDBOX_IMAGE = "node:20-slim"
-PREPARE_PNPM = "corepack enable && corepack prepare pnpm@latest --activate"
 
 
-async def run_type_check(repo_path: str, is_local_mode: bool = False) -> CommandResult:
+async def run_type_check(repo_path: str) -> CommandResult:
+    """Jalanin `npx tsc --noEmit` di host (cwd=repo_path). Gak ada Docker lagi - repo selalu lokal."""
     validated = validate_path_boundary(repo_path, repo_path)
-    if is_local_mode:
-        return await run_subprocess(
-            ["npx tsc --noEmit"], cwd=validated, timeout_s=TIMEOUT_SECONDS,
-            max_output_bytes=MAX_OUTPUT_BYTES, shell=True,
-        )
-    return await _run_in_docker(validated, "npx tsc --noEmit", allow_network=False)
+    return await run_subprocess(
+        ["npx tsc --noEmit"], cwd=validated, timeout_s=TIMEOUT_SECONDS,
+        max_output_bytes=MAX_OUTPUT_BYTES, shell=True,
+    )
 
 
-async def run_linter_and_tests(repo_path: str, is_local_mode: bool = False) -> CommandResult:
+async def run_linter_and_tests(repo_path: str) -> CommandResult:
+    """Jalanin skrip lint & test (pnpm) di host (cwd=repo_path). Gak ada Docker lagi."""
     validated = validate_path_boundary(repo_path, repo_path)
     scripts = await _get_package_scripts(validated)
     commands = [
@@ -40,12 +38,10 @@ async def run_linter_and_tests(repo_path: str, is_local_mode: bool = False) -> C
         return CommandResult(True, "Tidak ditemukan skrip lint atau test di package.json - dilewati.")
 
     command_str = " && ".join(commands)
-    if is_local_mode:
-        return await run_subprocess(
-            [command_str], cwd=validated, timeout_s=TIMEOUT_SECONDS,
-            max_output_bytes=MAX_OUTPUT_BYTES, shell=True,
-        )
-    return await _run_in_docker(validated, f"{PREPARE_PNPM} && {command_str}", allow_network=False)
+    return await run_subprocess(
+        [command_str], cwd=validated, timeout_s=TIMEOUT_SECONDS,
+        max_output_bytes=MAX_OUTPUT_BYTES, shell=True,
+    )
 
 
 async def _get_package_scripts(repo_path: str) -> dict:
@@ -54,14 +50,3 @@ async def _get_package_scripts(repo_path: str) -> dict:
         return json.loads(raw).get("scripts") or {}
     except Exception:
         return {}
-
-
-async def _run_in_docker(repo_path: str, shell_command: str, *, allow_network: bool) -> CommandResult:
-    args = [
-        "docker", "run", "--rm",
-        *([] if allow_network else ["--network", "none"]),
-        "--memory", "2g", "--cpus", "2", "--pids-limit", "256",
-        "-v", f"{repo_path}:/repo", "-w", "/repo",
-        SANDBOX_IMAGE, "sh", "-c", shell_command,
-    ]
-    return await run_subprocess(args, cwd=None, timeout_s=TIMEOUT_SECONDS, max_output_bytes=MAX_OUTPUT_BYTES)

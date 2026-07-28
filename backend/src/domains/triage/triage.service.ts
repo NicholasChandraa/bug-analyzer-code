@@ -1,4 +1,3 @@
-import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import type {
     CreateChatSessionRequestDTO,
     CreateMessageRequestDTO,
@@ -10,7 +9,6 @@ import type {
 
 import { env } from "../../config/env.js";
 import { triageRepo, type ChatSessionRow, type MessageRow } from "./triage.repo.js";
-import { createTriageAgent } from "./triage.agent.js";
 
 export class ChatSessionNotFoundError extends Error { }
 
@@ -43,30 +41,6 @@ const toMessageResponseDTO = (message: MessageRow): MessageResponseDTO => ({
     imageUrl: message.imageUrl,
     createdAt: message.createdAt.toISOString(),
 })
-
-/**
- * Checkpointer PostgreSQL untuk menyimpan status percakapan (state) 
- * dan riwayat eksekusi Triage AI Agent secara persisten di database.
- */
-const checkpointer = PostgresSaver.fromConnString(env.DATABASE_URL)
-
-/**
- * Cache Singleton untuk menyimpan instance `TriageAgent` (diinisialisasi secara lazy).
- * ReturnType -> untuk mengambil tipe data yang dikembalikan oleh suatu fungsi
- */
-let agentPromise: ReturnType<typeof createTriageAgent> | null = null
-
-// Lazily builds & caches the agent - checkpointer setup() creates/verifies LangGraph's
-// own Postgres tables, cukup dipanggil sekali per lifetime proses.
-function getTriageAgent() {
-    // Langkah A: Cek apakah agen sudah pernah di-setup & dibuat sebelumnya?
-    if (!agentPromise) {
-        // Langkah B: Jika BELUM (pertama kali aplikasi jalan), jalankan setup() DAHULU
-        agentPromise = checkpointer.setup().then(() => createTriageAgent(checkpointer))
-    }
-    // Langkah C: Kembalikan Promise agen yang sudah siap
-    return agentPromise
-}
 
 /**
  * Service layer untuk Triage domain.
@@ -107,9 +81,9 @@ export const triageService = {
         }))
     },
 
-    // Nyimpen message user, lalu invoke deep agent - `thread_id` = chatSessionId biar
-    // checkpointer nyambungin state percakapan per sesi. Return raw LangGraph stream;
-    // triage.routes.ts yang nanti nge-shape jadi SSE events.
+    // Nyimpen message user, lalu forward ke Engine (Python) buat jalanin agent.
+    // Backend gak lagi jalanin agent sendiri - cuma relay NDJSON stream dari Engine.
+    // ReadableStream ini single-consume (sama kayak async generator LangGraph sebelumnya).
     async sendMessage(chatSessionId: number, userId: number, data: CreateMessageRequestDTO) {
         await assertOwnership(chatSessionId, userId)
 
@@ -120,26 +94,22 @@ export const triageService = {
             imageUrl: data.imageUrl ?? null,
         })
 
-        const agent = await getTriageAgent()
-        const config = { configurable: { thread_id: String(chatSessionId) } }
+        const res = await fetch(`${env.ENGINE_URL}/agent/invoke`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chatSessionId, content: data.content }),
+        })
+        if (!res.ok || !res.body) {
+            // Kasih pesan yang user-friendly - frontend tampilkan ini langsung ke user.
+            const reason = res.status === 502 || res.status === 503
+                ? "Layanan AI (Engine) sedang tidak tersedia. Coba lagi sebentar lagi."
+                : `Engine invoke failed: HTTP ${res.status}`
+            throw new Error(reason)
+        }
 
-        // Checkpointer nyimpen riwayat lintas request - jadi buat sesi yang UDAH pernah
-        // ada pesan sebelumnya, chunk PERTAMA dari stream ini bakal langsung berisi seluruh
-        // riwayat lama (bukan cuma yang baru). baselineMessageCount dipakai triage.routes.ts
-        // biar gak nge-replay ulang pesan lama sebagai "message_delta" baru.
-        // Cast manual - tipe generic bawaan deepagents buat getState() susah di-infer lewat
-        // `Checkpointer` yang cuma diekstrak structural dari Parameters<typeof createDeepAgent>.
-        const priorState = (await agent.getState(config)) as { values: { messages?: unknown[] } }
-        const baselineMessageCount = priorState.values.messages?.length ?? 0
-
-        // Stream ini cuma boleh di-consume SEKALI (async generator LangGraph, gak bisa di-replay) -
-        // makanya langsung di-return apa adanya ke triage.routes.ts, jangan di-loop/di-consume disini.
-        const stream = await agent.stream(
-            { messages: [{ role: "user", content: data.content }] },
-            config
-        )
-
-        return { stream, baselineMessageCount }
+        // res.body adalah ReadableStream<Uint8Array> berisi NDJSON lines dari Engine.
+        // triage.routes.ts yang nge-parse & relay ke SSE - Backend gak perlu ngerti LangGraph state.
+        return { engineStream: res.body }
     },
 
     // Nyimpen balasan akhir assistant sebagai riwayat chat biasa (buat ditampilin di history).

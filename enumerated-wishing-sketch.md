@@ -781,11 +781,17 @@ before continuing, consistent with how the rest of this migration has been built
 [x] Stage 1: Engine infra - config.py, proc.py, path_guard.py, ripgrep.py, git_history.py, sandbox.py, get_chat_model.py, checkpointer.py
 [x] Fix pyproject.toml: add psycopg[binary,pool], remove gitpython
 [x] Stage 2: Backend internal endpoints (repository + triage internal routes)
-[ ] Ketiga endpoint tadi return 500, tapi bukan bug di kode Stage 2 — aku cek log server-nya:
-err: "Failed query: select ... source_type ... from repositories ..."
-id, name, slug, repo_url, local_path, default_branch, last_synced_at, created_at
-Kolom source_type gak ada di tabel yang beneran — padahal repository.model.ts udah declare kolom itu. Berarti ada migrasi yang ketinggalan jalan (db:push belum pernah dieksekusi setelah sourceType ditambahin ke model). Ini bukan disebabkan kerjaan Stage 2 — ini bakal ngeblokir SEMUA endpoint yang nyentuh tabel repositories (termasuk yang lama, list/get/sync), gak cuma 2 endpoint internal yang baru aku tambah. Butuh jalanin pnpm --filter backend db:push buat nerapin migrasi yang ketinggalan itu. Ini nambah kolom baru (non-destructive), tapi aku mau konfirmasi dulu sebelum nyentuh database beneran.
-[ ] Stage 3: Engine domain layer - schemas.py, backend_client.py, tools.py, agent.py
-[ ] Stage 4: Engine wiring - service.py, routes.py, main.py, logging.py
-[ ] Stage 5: Backend relay rewrite (triage.service.ts, triage.routes.ts)
-[ ] Stage 6: Cleanup - delete old TS agent/tools files
+[x] Fix DB migrasi: db:generate (0002_tranquil_sandman.sql nambah source_type + enum),
+fix missing FK constraints (bug_reports_chat_session_id_chat_sessions_id_fk,
+messages_chat_session_id_chat_sessions_id_fk), db:push clean. Endpoint internal gak 500 lagi.
+[x] Stage 3: Engine domain layer - schemas.py, backend_client.py, tools.py, agent.py
+[x] Stage 4: Engine wiring - service.py, routes.py, main.py, logging.py
+    (checkpointer setup OK, agent created OK, granian boot OK, health endpoint OK)
+[x] Stage 5: Backend relay rewrite - env.ts (+ENGINE_URL), triage.service.ts (sendMessage
+    now fetch Engine NDJSON, hapus checkpointer/agent import), triage.routes.ts (SSE handler
+    jadi NDJSON relay, completed event pull content buat saveAssistantMessage). No TS errors.
+[x] Stage 6: Cleanup - hapus triage.agent.ts, triage.tools.ts, ripgrep.ts (+test),
+    git-history.ts, get-chat-model.ts, path-guard.ts. sandbox.ts: hapus runTypeCheck/
+    runLinterAndTests/getPackageScripts/runLocalHostCommand, keep installDependencies.
+    Hapus 7 dead deps dari package.json (@langchain/*, deepagents, langchain, @vscode/ripgrep).
+    Hapus LLM_* dari backend env.ts/.env. pnpm install: -34 packages. Build + 34/34 test pass.

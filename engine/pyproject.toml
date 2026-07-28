@@ -11,10 +11,13 @@ dependencies = [
     "httpx",
     "langchain",
     "langchain-core",
+    "langchain-mcp-adapters",
     "langchain-openai",
     "langgraph-checkpoint-postgres",
+    "mcp",
     "psycopg[binary,pool]>=3.3",
     "pydantic-settings",
+    "rich>=14.0.0",
     "uvloop>=0.22.1 ; sys_platform != 'win32'",
     "winloop>=0.6.3 ; sys_platform == 'win32'",
 ]

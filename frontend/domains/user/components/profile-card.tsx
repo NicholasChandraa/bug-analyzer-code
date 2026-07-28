@@ -1,16 +1,13 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { useProfile } from "../hooks/use-profile"
+import { ShieldCheck, User } from "lucide-react"
 
 /**
  * ProfileCard UI component.
- * Displays the loaded user profile information in a card layout.
- * 
- * Semi-DDD rules:
- * - Domain components (`domains/[feature]/components/*`) are responsible for UI layout and rendering.
- * - They should never perform direct HTTP calls or manage global state; instead, they consume data
- *   and actions via domain-specific hooks (`useProfile`).
+ * Displays the loaded user profile information in a card layout with explicit Role badge.
  */
 export function ProfileCard() {
   const { profile, isLoading, error } = useProfile()
@@ -19,15 +16,32 @@ export function ProfileCard() {
   if (error) return <p className="text-sm text-red-500">{error}</p>
   if (!profile) return null
 
+  const isAdmin = profile.role === "admin"
+
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>{profile.name}</CardTitle>
-        <CardDescription>{profile.email}</CardDescription>
+    <Card className="w-full max-w-md">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-lg">{profile.name}</CardTitle>
+            <CardDescription className="text-sm">{profile.email}</CardDescription>
+          </div>
+          {isAdmin ? (
+            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" /> ADMIN
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <User className="w-3.5 h-3.5" /> USER
+            </Badge>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="text-xs text-muted-foreground">
-        User ID: {profile.id}
+      <CardContent className="text-xs text-muted-foreground space-y-1 border-t pt-3">
+        <div>User ID: <span className="font-mono text-foreground">{profile.id}</span></div>
+        <div>Role Akses: <span className="font-semibold text-foreground capitalize">{profile.role}</span></div>
       </CardContent>
     </Card>
   )
 }
+

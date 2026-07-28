@@ -15,6 +15,13 @@
       "when": 1784960643410,
       "tag": "0001_complete_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785214322635,
+      "tag": "0002_tranquil_sandman",
+      "breakpoints": true
     }
   ]
 }
