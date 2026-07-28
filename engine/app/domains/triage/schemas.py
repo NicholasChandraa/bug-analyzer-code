@@ -6,6 +6,8 @@ Dua keluarga yang SENGAJA dipisah:
   gak perlu mirror nama field TS.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
