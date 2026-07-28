@@ -71,9 +71,4 @@ export const triageRepo = {
             .innerJoin(repositoriesTable, eq(bugReportsTable.repositoryId, repositoriesTable.id))
             .orderBy(desc(bugReportsTable.createdAt))
     },
-
-    updateBugReportStatus: async (id: number, status: BugReportRow["status"]): Promise<BugReportRow | null> => {
-        const [report] = await db.update(bugReportsTable).set({ status }).where(eq(bugReportsTable.id, id)).returning()
-        return report ?? null
-    },
 }

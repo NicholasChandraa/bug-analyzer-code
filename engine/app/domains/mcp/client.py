@@ -1,10 +1,11 @@
-"""MCP client loader - connect ke MCP server eksternal, load tools-nya jadi LangChain tools.
+"""MCP client - connect ke MCP server eksternal, load tools-nya jadi LangChain tools.
 
-Pattern (dari skill managed-deep-agents + langchain-mcp-adapters docs):
-- MCP servers dideklarasi via config (JSON string di .env: MCP_SERVERS).
-- Loader parse config, connect ke tiap server, ambil tools-nya.
-- Tools otomatis jadi LangChain @tool - agent gak tau beda native vs MCP remote.
-- Dipanggil di lifespan startup, tools di-inject ke subagent yang butuh.
+Pure connection logic: parse config, connect ke server, return flat list of tools.
+Subagent definition (name, description, system_prompt) ada di agent.py di domain yang sama,
+bukan disini - client.py gak tau soal agent, cuma tau soal MCP connection.
+
+MCP servers dideklarasi via config (JSON string di .env: MCP_SERVERS).
+Tools otomatis jadi LangChain @tool - LLM liat tool descriptions, pilih sendiri.
 
 Transport support: http, sse, stdio (semua didukung langchain-mcp-adapters).
 """
@@ -14,6 +15,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient  # type: ignore[import-not-found]  # runtime OK, Pylance stub missing
 
 from app.config import settings
@@ -89,27 +91,26 @@ def parse_mcp_servers() -> list[McpServerConfig]:
     return servers
 
 
-async def load_mcp_tools() -> dict[str, list]:
-    """Connect ke semua MCP server, return tools dikelompokkan per server name.
+async def load_mcp_tools() -> list[BaseTool]:
+    """Connect ke semua MCP server, return flat list of LangChain tools.
 
-    Pattern: MCP tools di-assign ke subagent yang relevan di subagents.py (bukan inject ke
-    semua, bukan bikin subagent khusus). Triage butuh github MCP? Assign github tools ke
-    triage. Code review butuh analytics MCP? Assign ke code_review.
+    Semua tool dari semua server digabung jadi satu list. Pemanggil (agent.py di domain yang
+    sama) yang assemble jadi subagent dict - client.py gak tau soal agent/prompt.
+
+    Kalau MCP_SERVERS kosong atau semua server gagal connect, return empty list.
 
     Returns:
-        Dict {server_name: [LangChain tools]}. Kosong dict kalau gak ada MCP config.
-        Pemanggil (subagents.py) pilih tools mana yang ke subagent mana.
-
-    Contoh return: {"github": [search_issues, create_pr], "analytics": [query_data]}
+        List of LangChain tools dari semua MCP server. Kosong kalau gak ada config
+        atau semua server gagal connect.
     """
     servers = parse_mcp_servers()
     if not servers:
         logger.info("No MCP servers configured (MCP_SERVERS empty)")
-        return {}
+        return []
 
     logger.info("Loading MCP tools from %d server(s): %s", len(servers), [s.name for s in servers])
 
-    tools_by_server: dict[str, list] = {}
+    all_tools: list[BaseTool] = []
     for server in servers:
         try:
             client = MultiServerMCPClient({server.name: server.to_client_config()})
@@ -117,8 +118,9 @@ async def load_mcp_tools() -> dict[str, list]:
             logger.info("  [%s] loaded %d MCP tools", server.name, len(tools))
             for tool in tools:
                 logger.debug("    MCP tool: %s", tool.name)
-            tools_by_server[server.name] = tools
+            all_tools.extend(tools)
         except Exception as exc:
             logger.error("  [%s] failed to connect, skipped: %s", server.name, exc)
 
-    return tools_by_server
+    logger.info("Loaded %d MCP tools total", len(all_tools))
+    return all_tools

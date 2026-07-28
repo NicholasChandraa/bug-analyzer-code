@@ -6,6 +6,6 @@ Pattern (dari skill deep-agents-orchestration):
 - Subagent dieksekusi otonom, return final report ke orchestrator.
 - Subagent stateless - semua instruksi dalam 1 call.
 
-Sekarang cuma 1 subagent (triage), tapi struktur registry udah siap buat nambah
-subagent lain (code-review, security-audit, dll) tanpa ubah orchestrator code.
+Subagents di-define inline di agent.py (triage, mcp). Nambah subagent baru:
+tambah dict ke list di create_orchestrator_agent().
 """

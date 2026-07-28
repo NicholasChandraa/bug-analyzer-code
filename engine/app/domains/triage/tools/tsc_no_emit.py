@@ -3,7 +3,7 @@
 from langchain.tools import tool
 
 from app.domains.triage.schemas import TscNoEmitArgs
-from app.domains.triage.tools._common import get_resolver
+from app.domains.triage.tools._common import resolve_repo
 from app.infra.verification.sandbox import run_type_check
 
 
@@ -16,7 +16,6 @@ from app.infra.verification.sandbox import run_type_check
     ),
 )
 async def tsc_no_emit_tool(repo_slug: str) -> str:
-    resolver = get_resolver()
-    repo = await resolver.get(repo_slug)
+    repo = await resolve_repo(repo_slug)
     result = await run_type_check(repo.local_path)
     return "Pemeriksaan tipe data TypeScript berhasil dengan 0 error." if result.passed else result.output

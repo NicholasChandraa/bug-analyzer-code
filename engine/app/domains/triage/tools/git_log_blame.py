@@ -3,7 +3,7 @@
 from langchain.tools import tool
 
 from app.domains.triage.schemas import GitLogBlameArgs
-from app.domains.triage.tools._common import get_resolver, resolve_safe_path
+from app.domains.triage.tools._common import resolve_repo_path, resolve_safe_path
 from app.infra.code_search.git_history import get_file_blame, get_file_log
 
 
@@ -16,8 +16,7 @@ from app.infra.code_search.git_history import get_file_blame, get_file_log
     ),
 )
 async def git_log_blame_tool(repo_slug: str, file_path: str, mode: str) -> str:
-    resolver = get_resolver()
-    local_path = await resolver.get_path(repo_slug)
+    local_path = await resolve_repo_path(repo_slug)
     resolve_safe_path(local_path, file_path)  # guard-only, untrusted file_path
 
     if mode == "blame":

@@ -1,7 +1,7 @@
-"""Shared agent stream processor - iterate agent.astream() dan emit SSE-shaped events.
+"""Agent stream processor - iterate agent.astream() dan emit SSE-shaped events.
 
-Dipakai orchestrator service (dan nanti subagent service kalau perlu). Dipisah dari domain
-spesifik karena stream processing logic-nya generic - tinggal pass agent instance + config.
+LangChain/DeepAgents .astream(stream_mode="values") return full state snapshot per step,
+bukan delta. Function ini diff tiap snapshot dan emit hanya yang baru:
 
 Events emitted:
   - {"event": "todos_updated", "data": <todos list>}
@@ -26,69 +26,52 @@ AGENT_RECURSION_LIMIT = 100
 AGENT_TURN_TIMEOUT_SECONDS = 600
 
 
-class AgentStreamer:
-    """Iterate agent.astream(stream_mode="values") dan emit SSE-shaped events.
+async def stream_agent_events(
+    agent,
+    config: dict,
+    content: str,
+    chat_session_id: int,
+) -> AsyncIterator[dict]:
+    """Stream agent.astream(), yield SSE-shaped events (todos_updated / message_delta / completed).
 
-    State (last_todos_json, last_message_count, last_ai_text) encapsulated di sini,
-    jadi caller gak perlu tau detail diffing logic. Testable secara terisolasi - tinggal
-    pass mock agent.
+    Args:
+        agent: Deep Agent instance (orchestrator).
+        config: LangGraph config dict (thread_id, recursion_limit, etc).
+        content: User message text.
+        chat_session_id: ID chat session (buat completed event).
+
+    Yields:
+        dict with "event" and "data" keys, siap di-NDJSON-kan routes.py.
     """
+    # Seed message count dari prior state - cegah replay pesan lama sebagai "baru".
+    prior_state = await agent.aget_state(config)
+    last_msg_count = len((prior_state.values or {}).get("messages") or [])
+    last_todos_json = ""
+    last_ai_text = ""
 
-    def __init__(self, chat_session_id: int):
-        self._chat_session_id = chat_session_id
-        self._last_todos_json = ""
-        self._last_message_count = 0
-        self._last_ai_text = ""
-
-    async def seed_from_state(self, agent, config: dict) -> None:
-        """Seed message count dari prior state - cegah replay pesan lama sebagai 'baru'."""
-        prior_state = await agent.aget_state(config)
-        self._last_message_count = len((prior_state.values or {}).get("messages") or [])
-        logger.debug("prior message count: %d", self._last_message_count)
-
-    async def stream(self, agent, config: dict, content: str) -> AsyncIterator[dict]:
-        """Iterate agent stream, yield events. Dipanggil di dalam asyncio.timeout wrapper."""
-        async for chunk in agent.astream(
-            {"messages": [{"role": "user", "content": content}]},
-            config,
-            stream_mode="values",
-        ):
-            logger.debug("chunk: %s", chunk)
-            for event in self._process_chunk(chunk):
-                yield event
-
-        # Final completed event with accumulated ai text.
-        yield {
-            "event": "completed",
-            "data": {"chatSessionId": self._chat_session_id, "content": self._last_ai_text},
-        }
-
-    def _process_chunk(self, chunk: dict) -> list[dict]:
-        """Process satu chunk, return list of events (bisa 0, 1, atau lebih)."""
-        events: list[dict] = []
-
+    async for chunk in agent.astream(
+        {"messages": [{"role": "user", "content": content}]},
+        config,
+        stream_mode="values",
+    ):
         # Todos: emit kalau berubah.
         todos = chunk.get("todos")
         if todos:
-            logger.debug("todos: %s", todos)
             todos_json = json.dumps(todos, default=str)
-            if todos_json != self._last_todos_json:
-                self._last_todos_json = todos_json
-                events.append({"event": "todos_updated", "data": todos})
+            if todos_json != last_todos_json:
+                last_todos_json = todos_json
+                yield {"event": "todos_updated", "data": todos}
 
         # Messages: emit new AIMessage deltas.
         messages = chunk.get("messages") or []
-        if len(messages) > self._last_message_count:
-            for message in messages[self._last_message_count :]:
-                logger.debug(
-                    "message type=%s content=%r",
-                    type(message).__name__,
-                    str(getattr(message, "text", message)),
-                )
+        if len(messages) > last_msg_count:
+            for message in messages[last_msg_count:]:
                 if isinstance(message, AIMessage):
-                    self._last_ai_text = str(message.text)
-                    logger.debug("AI reply: %s", self._last_ai_text)
-                    events.append({"event": "message_delta", "data": {"content": self._last_ai_text}})
-            self._last_message_count = len(messages)
+                    last_ai_text = str(message.text)
+                    yield {"event": "message_delta", "data": {"content": last_ai_text}}
+            last_msg_count = len(messages)
 
-        return events
+    yield {
+        "event": "completed",
+        "data": {"chatSessionId": chat_session_id, "content": last_ai_text},
+    }

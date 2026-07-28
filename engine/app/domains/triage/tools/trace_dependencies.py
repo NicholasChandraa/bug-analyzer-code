@@ -3,7 +3,7 @@
 from langchain.tools import tool
 
 from app.domains.triage.schemas import TraceDependenciesArgs
-from app.domains.triage.tools._common import get_resolver
+from app.domains.triage.tools._common import resolve_repo_path
 from app.infra.code_search.ripgrep import search_across_repos
 
 
@@ -16,8 +16,7 @@ from app.infra.code_search.ripgrep import search_across_repos
     ),
 )
 async def trace_dependencies_tool(repo_slug: str, module_path: str) -> str:
-    resolver = get_resolver()
-    local_path = await resolver.get_path(repo_slug)
+    local_path = await resolve_repo_path(repo_slug)
     matches = await search_across_repos(module_path, [local_path])
 
     if not matches:

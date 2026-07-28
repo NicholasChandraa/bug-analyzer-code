@@ -1,53 +1,15 @@
-"""Pydantic wire models (Backend↔Engine JSON) + tool-arg schemas (LLM-facing).
+"""Tool-arg schemas (LLM-facing, snake_case) buat triage tools.
 
-Dua keluarga yang SENGAJA dipisah:
-- Wire schemas: Backend↔Engine JSON, camelCase alias (match DTO convention codebase).
-- Tool-arg schemas: LLM-facing, plain snake_case - LLM cuma lihat apa yang kita kasih,
-  gak perlu mirror nama field TS.
+Wire schemas (Backend↔Engine JSON) ada di infra/schemas.py - cross-domain, dipakai
+orchestrator routes, backend_client, dan tools. Tool-arg schemas cuma dipakai triage tools,
+jadi tetap di sini.
+
+LLM cuma liat apa yang kita kasih lewat Field(description=...) - gak perlu mirror nama field TS.
 """
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.alias_generators import to_camel
-
-
-class CamelModel(BaseModel):
-    """Base buat wire schemas - alias camelCase, tapi masih bisa populate via snake_case."""
-
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
-
-# ---------------------------------------------------------------------------
-# Wire schemas (Backend↔Engine)
-# ---------------------------------------------------------------------------
-
-
-class AgentInvokeRequest(CamelModel):
-    chat_session_id: int
-    content: str
-
-
-class RepositoryDTO(CamelModel):
-    """Shape yang dikirim Backend lewat endpoint /api/repositories/internal.
-    Pydantic v2 default ignore extra fields, jadi gak masalah kalau Backend kirim lebih banyak.
-    """
-
-    id: int
-    name: str
-    slug: str
-    local_path: str
-    last_synced_at: str | None = None
-    created_at: str = ""
-
-
-class BugReportIdResponse(CamelModel):
-    bug_report_id: int
-
-
-# ---------------------------------------------------------------------------
-# Tool-arg schemas (LLM-facing, snake_case)
-# ---------------------------------------------------------------------------
+from pydantic import BaseModel, Field
 
 
 class RipgrepSearchArgs(BaseModel):

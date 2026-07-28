@@ -1,8 +1,8 @@
 """invoke_orchestrator() - stream events dari orchestrator agent ke Backend (NDJSON).
 
 Orchestrator menerima request, klasifikasi intent, delegasi ke subagent via `task` tool,
-lalu stream events kembali. AgentStreamer (infra/agent/streamer.py) reusable - orchestrator
-dan subagent-nya sama-sama emit state dengan shape yang sama (messages/todos).
+lalu stream events kembali. stream_agent_events() (infra/agent/streamer.py) reusable -
+orchestrator dan subagent-nya sama-sama emit state dengan shape yang sama (messages/todos).
 """
 
 import asyncio
@@ -14,7 +14,7 @@ from langgraph.errors import GraphRecursionError  # type: ignore[import-not-foun
 from app.infra.agent.streamer import (
     AGENT_RECURSION_LIMIT,
     AGENT_TURN_TIMEOUT_SECONDS,
-    AgentStreamer,
+    stream_agent_events,
 )
 from app.infra.llm.errors import classify_llm_error
 from app.infra.security.sensitive import mask_sensitive
@@ -40,12 +40,9 @@ async def invoke_orchestrator(agent, chat_session_id: int, content: str) -> Asyn
 
     logger.info("user message (chat_session_id=%s): %s", chat_session_id, content)
 
-    streamer = AgentStreamer(chat_session_id)
     try:
-        await streamer.seed_from_state(agent, config)
-
         async with asyncio.timeout(AGENT_TURN_TIMEOUT_SECONDS):
-            async for event in streamer.stream(agent, config, content):
+            async for event in stream_agent_events(agent, config, content, chat_session_id):
                 yield event
 
     except GraphRecursionError:

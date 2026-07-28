@@ -27,26 +27,8 @@ export function useRepositories() {
   }, [])
 
   useEffect(() => {
-    let isMounted = true
-    repositoryService
-      .listRepositories()
-      .then((data) => {
-        if (isMounted) {
-          setRepositories(data)
-          setLoading(false)
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "Failed to load repositories")
-          setLoading(false)
-        }
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
+    fetchRepositories()
+  }, [fetchRepositories])
 
   const registerRepository = async (data: CreateRepositoryRequestDTO) => {
     try {

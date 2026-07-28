@@ -9,7 +9,6 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.domains.orchestrator.agent import create_orchestrator_agent
@@ -17,7 +16,6 @@ from app.domains.orchestrator.routes import router as agent_router
 from app.infra.backend_client import close_client
 from app.infra.db.checkpointer import build_checkpointer
 from app.infra.logging import configure_logging, set_request_id
-from app.infra.mcp.client import load_mcp_subagents
 
 
 @asynccontextmanager
@@ -30,10 +28,8 @@ async def lifespan(app: FastAPI):
         # httpx client cleanup on shutdown
         stack.push_async_callback(close_client)
 
-        # Load MCP subagents - tiap MCP server jadi 1 subagent (bukan inject tools ke semua).
-        mcp_subagents = await load_mcp_subagents()
-
-        app.state.agent = create_orchestrator_agent(checkpointer, extra_subagents=mcp_subagents)
+        # Build orchestrator agent (loads MCP tools + assembles subagents internally).
+        app.state.agent = await create_orchestrator_agent(checkpointer)
         yield
 
 

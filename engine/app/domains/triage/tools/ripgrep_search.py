@@ -3,7 +3,7 @@
 from langchain.tools import tool
 
 from app.domains.triage.schemas import RipgrepSearchArgs
-from app.domains.triage.tools._common import get_resolver
+from app.domains.triage.tools._common import resolve_repos
 from app.infra.code_search.ripgrep import search_across_repos
 
 
@@ -16,8 +16,7 @@ from app.infra.code_search.ripgrep import search_across_repos
     ),
 )
 async def ripgrep_search_tool(query: str, repo_slugs: list[str] | None = None) -> str:
-    resolver = get_resolver()
-    repos = await resolver.list(repo_slugs)
+    repos = await resolve_repos(repo_slugs)
     if not repos:
         return "Tidak ada repositori terdaftar yang cocok."
 

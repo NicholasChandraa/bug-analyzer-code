@@ -7,7 +7,7 @@ Module-level httpx client dibangun di import time, ditutup di lifespan main.py.
 import httpx
 
 from app.config import settings
-from app.domains.triage.schemas import BugReportIdResponse, RepositoryDTO
+from app.infra.schemas import BugReportIdResponse, RepositoryDTO
 
 # Retries cuma connection-level failures (refused/reset), bukan timeout/5xx - cukup buat
 # 2 call site dengan Backend yang cuma briefly unavailable pas redeploy.

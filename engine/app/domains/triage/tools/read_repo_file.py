@@ -5,7 +5,7 @@ import asyncio
 from langchain.tools import tool
 
 from app.domains.triage.schemas import ReadRepoFileArgs
-from app.domains.triage.tools._common import get_resolver, resolve_safe_path
+from app.domains.triage.tools._common import resolve_repo_path, resolve_safe_path
 
 
 @tool(
@@ -16,8 +16,7 @@ from app.domains.triage.tools._common import get_resolver, resolve_safe_path
 async def read_repo_file_tool(
     repo_slug: str, file_path: str, start_line: int | None = None, end_line: int | None = None
 ) -> str:
-    resolver = get_resolver()
-    local_path = await resolver.get_path(repo_slug)
+    local_path = await resolve_repo_path(repo_slug)
     absolute_path = resolve_safe_path(local_path, file_path)
 
     content = await asyncio.to_thread(_read_file_sync, absolute_path)

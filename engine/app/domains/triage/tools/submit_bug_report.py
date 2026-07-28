@@ -3,7 +3,7 @@
 from langchain.tools import tool, ToolRuntime
 
 from app.domains.triage.schemas import SubmitBugReportArgs
-from app.domains.triage.tools._common import get_resolver, resolve_safe_path
+from app.domains.triage.tools._common import resolve_repo, resolve_safe_path
 from app.infra import backend_client
 
 
@@ -36,8 +36,7 @@ async def submit_bug_report_tool(
     if not chat_session_id:
         raise ValueError("thread_id tidak ditemukan di runtime config - gak bisa nyimpen bug report")
 
-    resolver = get_resolver()
-    repo = await resolver.get(repo_slug)
+    repo = await resolve_repo(repo_slug)
     resolve_safe_path(repo.local_path, file_path)  # guard-only, result unused
 
     await backend_client.submit_bug_report(

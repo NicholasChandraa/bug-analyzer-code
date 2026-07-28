@@ -44,31 +44,8 @@ export function useTriageChat(initialSessionId?: number | null) {
   }, [activeSessionId]);
 
   useEffect(() => {
-    let isMounted = true;
-    triageService
-      .listChatSessions()
-      .then((data) => {
-        if (isMounted) {
-          setSessions(data);
-          if (data.length > 0 && !activeSessionId) {
-            setActiveSessionId(data[0].id);
-          }
-          setLoadingSessions(false);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          setError(
-            err instanceof Error ? err.message : "Failed to load chat sessions",
-          );
-          setLoadingSessions(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeSessionId]);
+    fetchSessions();
+  }, [fetchSessions]);
 
   const loadSessionMessages = useCallback(async (sessionId: number) => {
     try {
@@ -85,33 +62,10 @@ export function useTriageChat(initialSessionId?: number | null) {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-
     if (activeSessionId) {
-      triageService
-        .listMessages(activeSessionId)
-        .then((data) => {
-          if (isMounted) {
-            setMessages(data);
-            setError(null);
-            setTodos([]);
-            setLoadingMessages(false);
-          }
-        })
-        .catch((err) => {
-          if (isMounted) {
-            setError(
-              err instanceof Error ? err.message : "Failed to load messages",
-            );
-            setLoadingMessages(false);
-          }
-        });
+      loadSessionMessages(activeSessionId);
     }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeSessionId]);
+  }, [activeSessionId, loadSessionMessages]);
 
   const selectSession = (sessionId: number | null) => {
     setActiveSessionId(sessionId);

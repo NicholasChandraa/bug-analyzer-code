@@ -10,7 +10,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from app.domains.orchestrator.service import invoke_orchestrator
-from app.domains.triage.schemas import AgentInvokeRequest
+from app.infra.schemas import AgentInvokeRequest
 
 router = APIRouter()
 

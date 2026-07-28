@@ -23,15 +23,6 @@ export const CreateMessageSchema = z.object({
 export type CreateMessageRequestDTO = z.infer<typeof CreateMessageSchema>
 
 /**
- * Zod validation schema buat admin update status report dari dashboard (Request Input).
- */
-export const UpdateBugReportStatusSchema = z.object({
-    status: z.enum(["open", "in_progress", "resolved"]),
-})
-
-export type UpdateBugReportStatusRequestDTO = z.infer<typeof UpdateBugReportStatusSchema>
-
-/**
  * Zod validation schema buat endpoint internal submit_bug_report (dipanggil Engine, bukan user).
  */
 export const SubmitBugReportInternalSchema = z.object({
