@@ -1,181 +1,172 @@
-"use client"
+"use client";
 
-import React, { useState, useRef, useEffect } from "react"
-import { useTriageChat } from "../hooks/use-triage-chat"
-import { useRepositories } from "@/domains/repository/hooks/use-repositories"
-import { RepoSelector } from "@/domains/repository/components/repo-selector"
-import { TodoProgress } from "./todo-progress"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+import React, { useState } from "react";
+import { useTriageChat } from "../hooks/use-triage-chat";
+import { useRepositories } from "@/domains/repository/hooks/use-repositories";
+import { RepoSelector } from "@/domains/repository/components/repo-selector";
+import { TodoProgress } from "./todo-progress";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
+  MessageSquarePlus,
   Send,
-  Image as ImageIcon,
+  Loader2,
   Bot,
   User,
-  Plus,
-  MessageSquare,
-  Sparkles,
-  Loader2,
   AlertCircle,
+  Sparkles,
+  Paperclip,
   X,
-} from "lucide-react"
-
-import { useSearchParams } from "next/navigation"
+} from "lucide-react";
 
 export function ChatInterface() {
-  const searchParams = useSearchParams()
-  const urlRepoId = searchParams.get("repoId")
-
-  const { repositories, loading: loadingRepos } = useRepositories()
   const {
     sessions,
     activeSessionId,
     setActiveSessionId,
     messages,
     todos,
+    loadingSessions,
+    loadingMessages,
     isStreaming,
     error,
     createNewSession,
     sendMessage,
-  } = useTriageChat()
+  } = useTriageChat();
 
-  // User explicit selection in dropdown overrides URL search param
-  const [userSelectedRepoId, setUserSelectedRepoId] = useState<number | null | undefined>(undefined)
-  const [inputText, setInputText] = useState("")
-  const [imageUrl, setImageUrl] = useState("")
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { repositories } = useRepositories();
+  const [selectedRepoId, setSelectedRepoId] = useState<number | undefined>(
+    undefined,
+  );
+  const [inputContent, setInputContent] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  // Derived selected repo id (derived state pattern - always targets a specific repo)
-  const currentSelectedRepoId =
-    userSelectedRepoId !== undefined
-      ? userSelectedRepoId
-      : urlRepoId && !Number.isNaN(Number(urlRepoId))
-      ? Number(urlRepoId)
-      : repositories.length > 0
-      ? repositories[0].id
-      : null
+  const handleSend = async () => {
+    if (!inputContent.trim() || isStreaming) return;
+    const content = inputContent;
+    const img = imageUrl || undefined;
+    const repoId = selectedRepoId;
 
-  // Scroll to bottom when messages update
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, todos, isStreaming])
+    setInputContent("");
+    setImageUrl(null);
 
-  const handleNewChat = async () => {
-    const defaultTitle = "Percakapan Bug Triage Baru"
-    try {
-      await createNewSession(defaultTitle, currentSelectedRepoId)
-    } catch {
-      // Handled in hook
+    await sendMessage(content, img, repoId);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!inputText.trim() || isStreaming) return
-
-    const textToSend = inputText
-    const imageToSend = imageUrl
-
-    setInputText("")
-    setImageUrl("")
-
-    await sendMessage(textToSend, imageToSend, currentSelectedRepoId || undefined)
-  }
-
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setIsUploadingImage(true)
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      if (typeof event.target?.result === "string") {
-        setImageUrl(event.target.result)
-      }
-      setIsUploadingImage(false)
-    }
-    reader.onerror = () => {
-      setIsUploadingImage(false)
-    }
-    reader.readAsDataURL(file)
-  }
+  };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] border rounded-xl overflow-hidden bg-background">
-      {/* Sidebar Chat Sessions */}
-      <div className="w-64 border-r bg-muted/20 flex flex-col hidden md:flex">
-        <div className="p-3 border-b flex items-center justify-between">
-          <span className="font-semibold text-sm flex items-center gap-1.5">
-            <MessageSquare className="w-4 h-4 text-primary" /> Percakapan
-          </span>
-          <Button size="xs" variant="outline" onClick={handleNewChat}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Baru
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-6rem)]">
+      {/* Sidebar - Sessions List */}
+      <Card className="lg:col-span-3 flex flex-col h-full overflow-hidden border">
+        <CardHeader className="p-4 border-b flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+            <MessageSquarePlus className="w-4 h-4 text-primary" /> Sesi Chat
+          </CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              createNewSession("New Bug Triage Session", selectedRepoId)
+            }
+            className="text-xs h-8"
+          >
+            Sesi Baru
           </Button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {sessions.length === 0 ? (
-            <p className="text-xs text-muted-foreground p-3 text-center">
-              Belum ada sesi percakapan.
-            </p>
+        </CardHeader>
+        <CardContent className="p-2 flex-1 overflow-y-auto space-y-1">
+          {loadingSessions ? (
+            <div className="text-xs text-muted-foreground text-center py-6">
+              Memuat sesi...
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="text-xs text-muted-foreground text-center py-6">
+              Belum ada riwayat sesi.
+            </div>
           ) : (
             sessions.map((sess) => (
               <button
                 key={sess.id}
                 onClick={() => setActiveSessionId(sess.id)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex flex-col gap-0.5 ${
-                  sess.id === activeSessionId
-                    ? "bg-primary text-primary-foreground font-medium"
-                    : "hover:bg-muted text-foreground/80"
+                className={`w-full text-left px-3 py-2.5 rounded-lg text-xs transition-colors flex flex-col gap-1 ${
+                  activeSessionId === sess.id
+                    ? "bg-primary/10 font-semibold text-primary border border-primary/20"
+                    : "hover:bg-muted text-muted-foreground"
                 }`}
               >
-                <span className="truncate">{sess.title}</span>
-                <span
-                  className={`text-[10px] ${
-                    sess.id === activeSessionId
-                      ? "text-primary-foreground/70"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {new Date(sess.createdAt).toLocaleDateString("id-ID")}
-                </span>
+                <div className="truncate text-foreground font-medium">
+                  {sess.title}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {new Date(sess.createdAt).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
               </button>
             ))
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header Repo Selector */}
-        <div className="p-3 border-b bg-card flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="font-semibold text-sm flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-amber-500" /> Smart Bug Triage
-            </span>
-            <Badge variant="secondary" className="text-xs font-normal">
-              Deep Agent ReAct
-            </Badge>
+      <Card className="lg:col-span-6 flex flex-col h-full overflow-hidden border">
+        {/* Header Controls */}
+        <div className="p-3 border-b bg-muted/20 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="w-full sm:w-64">
+            <RepoSelector
+              repositories={repositories}
+              selectedRepoId={selectedRepoId ?? null}
+              onSelectRepo={(id) => setSelectedRepoId(id ?? undefined)}
+            />
           </div>
-          <RepoSelector
-            repositories={repositories}
-            selectedRepoId={currentSelectedRepoId}
-            onSelectRepo={setUserSelectedRepoId}
-            disabled={isStreaming || loadingRepos}
-          />
+          <div className="text-xs text-muted-foreground font-mono">
+            {isStreaming ? (
+              <span className="flex items-center gap-1.5 text-primary">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Analyzing
+                codebase...
+              </span>
+            ) : (
+              <span>Agent Status: Ready</span>
+            )}
+          </div>
         </div>
 
-        {/* Message Stream Area */}
+        {/* Error Alert */}
+        {error && (
+          <div className="mx-4 mt-3 p-3 bg-destructive/10 border border-destructive/30 text-destructive text-xs rounded-md flex items-center gap-2 shrink-0">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Message Stream Stream */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3 max-w-md mx-auto">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <Bot className="w-6 h-6" />
+          {loadingMessages ? (
+            <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" /> Memuat riwayat
+              percakapan...
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-3">
+              <div className="p-3 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-500">
+                <Sparkles className="w-6 h-6 text-orange-500" />
               </div>
-              <h3 className="font-semibold text-lg">Jelaskan Bug atau Masalah Kode</h3>
+              <h3 className="font-semibold text-lg">
+                Jelaskan Bug atau Masalah Kode
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Tulis deskripsi kendala, sertakan screenshot jika ada, lalu pilih repositori target. Agen akan mencari lokasi file dan merumuskan perbaikan kode.
+                Tulis deskripsi kendala, sertakan screenshot jika ada, lalu
+                pilih repositori target. Agen akan mencari lokasi file dan
+                merumuskan perbaikan kode.
               </p>
             </div>
           ) : (
@@ -190,10 +181,14 @@ export function ChatInterface() {
                   className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      : "bg-orange-500 text-white font-bold shadow-sm"
                   }`}
                 >
-                  {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  {msg.role === "user" ? (
+                    <User className="w-4 h-4" />
+                  ) : (
+                    <Bot className="w-4 h-4" />
+                  )}
                 </div>
                 <div
                   className={`space-y-2 rounded-xl p-3.5 text-sm ${
@@ -211,96 +206,82 @@ export function ChatInterface() {
                     />
                   )}
                   {msg.content ? (
-                    <div className="whitespace-pre-wrap leading-relaxed">
+                    <div className="whitespace-pre-wrap font-sans text-xs sm:text-sm">
                       {msg.content}
                     </div>
-                  ) : msg.role === "assistant" && isStreaming ? (
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs italic">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Agen sedang menganalisis repositori...</span>
-                    </div>
-                  ) : null}
-
-                  {msg.role === "assistant" && idx === messages.length - 1 && (
-                    <TodoProgress todos={todos} />
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground animate-pulse font-mono">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Thinking &
+                      scanning codebase...
+                    </span>
                   )}
                 </div>
               </div>
             ))
           )}
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 text-destructive rounded-md text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Form */}
-        <div className="p-3 border-t bg-card">
+        {/* Input Composer */}
+        <div className="p-3 border-t bg-card space-y-3 shrink-0">
           {imageUrl && (
-            <div className="mb-2 relative inline-block">
+            <div className="relative inline-block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imageUrl}
                 alt="Preview"
-                className="h-16 w-auto rounded border object-cover"
+                className="h-16 w-16 object-cover rounded-md border"
               />
               <button
-                onClick={() => setImageUrl("")}
+                onClick={() => setImageUrl(null)}
                 className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
               >
                 <X className="w-3 h-3" />
               </button>
             </div>
           )}
-          <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-            <div className="relative flex-1">
-              <Textarea
-                placeholder="Deskripsikan bug (contoh: 'Endpoint /api/users mengembalikan 500 saat nama bernilai null')..."
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSubmit(e)
-                  }
+          <div className="flex gap-2 items-end">
+            <Textarea
+              value={inputContent}
+              onChange={(e) => setInputContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Deskripsikan bug (e.g. 'Tombol checkout 500 error di file cart.service.ts')..."
+              className="min-h-[50px] max-h-[120px] text-xs resize-none"
+              disabled={isStreaming}
+            />
+            <div className="flex flex-col gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => {
+                  const url = prompt("Masukkan URL gambar bug screenshot:");
+                  if (url) setImageUrl(url);
                 }}
-                rows={2}
-                className="resize-none pr-10 text-sm"
-                disabled={isStreaming}
-              />
-              <label
-                htmlFor="image-upload"
-                className="absolute right-2.5 bottom-2.5 text-muted-foreground hover:text-foreground cursor-pointer p-1 rounded-md transition-colors"
-                title="Upload Screenshot Bug"
               >
-                <ImageIcon className="w-4 h-4" />
-                <input
-                  id="image-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageFileChange}
-                  className="hidden"
-                  disabled={isStreaming || isUploadingImage}
-                />
-              </label>
+                <Paperclip className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                onClick={handleSend}
+                disabled={!inputContent.trim() || isStreaming}
+                size="icon"
+                className="h-10 w-10 shrink-0 bg-orange-500 hover:bg-orange-600 text-white font-bold"
+              >
+                {isStreaming ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-            <Button
-              type="submit"
-              disabled={isStreaming || !inputText.trim()}
-              className="h-full min-h-[54px] px-4"
-            >
-              {isStreaming ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
-          </form>
+          </div>
         </div>
-      </div>
+      </Card>
+
+      {/* Right Sidebar - Agent Reasoning To-Do Panel */}
+      <Card className="lg:col-span-3 flex flex-col h-full overflow-hidden border">
+        <TodoProgress todos={todos} />
+      </Card>
     </div>
-  )
+  );
 }

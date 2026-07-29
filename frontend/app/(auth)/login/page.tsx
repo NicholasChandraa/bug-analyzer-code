@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import { LoginForm } from "@/domains/auth/components/login-form"
 import logo from "@/public/logo.png"
 import darkHeroBg from "@/public/dark-hero-bg.jpg"
@@ -6,7 +7,7 @@ import mascotImg from "@/public/mascot.jpg"
 
 /**
  * Next.js Router Page: Login
- * Clean split-screen layout with centered content block container, left-aligned text, left top logo, and orange accent keyword.
+ * Clean split-screen layout with return-to-landing-page button.
  */
 export default function LoginPage() {
   return (
@@ -23,15 +24,21 @@ export default function LoginPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-950/90 to-slate-950 pointer-events-none" />
 
-        {/* Top Branding Header - Left Aligned */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm">
-            <Image src={logo} alt="Logo" className="w-7 h-7 object-contain" priority />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-white">Smart Bug Triage</span>
+        {/* Top Branding Header with Return Button */}
+        <div className="relative z-10 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="p-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 shadow-sm group-hover:bg-white/20 transition-colors">
+              <Image src={logo} alt="Logo" className="w-7 h-7 object-contain" priority />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-white group-hover:text-amber-400 transition-colors">Smart Bug Triage</span>
+          </Link>
+
+          <Link href="/" className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-semibold text-white transition-colors">
+            &larr; Kembali ke Beranda
+          </Link>
         </div>
 
-        {/* Center Hero Content Block - Centered Container with Left-Aligned Text */}
+        {/* Center Hero Content Block */}
         <div className="relative z-10 my-auto py-6 space-y-5 max-w-md mx-auto w-full">
           <div className="space-y-3 text-left">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] text-white">
@@ -61,7 +68,14 @@ export default function LoginPage() {
       </div>
 
       {/* Right Form Column */}
-      <div className="lg:col-span-6 xl:col-span-6 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-background">
+      <div className="lg:col-span-6 xl:col-span-6 flex flex-col items-center justify-center p-6 sm:p-12 lg:p-16 bg-background relative">
+        {/* Mobile top return link */}
+        <div className="w-full max-w-md flex justify-end mb-4 lg:hidden">
+          <Link href="/" className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+            &larr; Kembali ke Landing Page
+          </Link>
+        </div>
+
         <LoginForm />
       </div>
     </main>

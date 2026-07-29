@@ -5,9 +5,10 @@
 "Smart Bug Triage Agent" — a 3-service monorepo (pnpm workspaces + Python sibling). Users describe a bug (text + screenshot) in a chat UI; a LangGraph/DeepAgents agent classifies it, searches across registered git repos on disk, and drafts a verified fix, streamed back over SSE and saved to an internal dashboard.
 
 **This is a 3-service system, not a 2-tier app:**
+
 - `frontend/` — Next.js 16 (App Router), talks ONLY to `backend/` (never directly to `engine/`).
 - `backend/` — Hono (TypeScript). Owns `auth`, `user`, `repository`, and a slim `triage` domain (chat CRUD + SSE relay). Forwards agent requests to `engine/` and relays the stream back.
-- `engine/` — Python/FastAPI. Owns the LangGraph/DeepAgents reasoning loop and ALL agent tools natively in Python (ripgrep, git, Docker sandbox). Its only direct DB dependency is its own LangGraph Postgres checkpointer tables; everything else (resolving repo slugs, submitting bug reports) goes through HTTP calls to `backend/`.
+- `engine/` — Python/FastAPI. Owns the LangGraph/DeepAgents reasoning loop and ALL agent tools natively in Python (ripgrep, file read, git log/blame, dependency tracing, tsc/lint/test verification — all via native `asyncio.create_subprocess_exec`). No Docker sandbox. Its only direct DB dependency is its own LangGraph Postgres checkpointer tables; everything else (resolving repo slugs, submitting bug reports) goes through HTTP calls to `backend/`.
 
 Dependency direction is one-way except for two narrow HTTP touchpoints: `backend` → `engine` to invoke the agent, and `engine` → `backend` to resolve repo info / submit a bug report.
 
@@ -33,6 +34,7 @@ pnpm --filter frontend lint               # ESLint
 ```
 
 **Engine (Python):** Run from `engine/` directory:
+
 ```bash
 cd engine
 .\start.ps1                               # Windows — granian dev server on port 8000
@@ -48,12 +50,14 @@ Code is organized by business domain, not by technical layer.
 ### Backend (`backend/src/domains/<feature>/`)
 
 Each domain has up to four files with a strict responsibility split:
+
 - `*.model.ts` — Drizzle `pgTable` definitions only.
 - `*.repo.ts` — Drizzle queries only, no business logic. Exported as a plain object of async functions (`export const xRepo = { ... }`), not a class.
 - `*.service.ts` — Business logic only; never touches Drizzle directly, always goes through `*.repo.ts`.
 - `*.routes.ts` — Hono routes: validates input with `zValidator` against schemas from `@restack/shared`, calls the service, shapes the JSON response.
 
 **Cross-domain dependency rule (one-directional, enforced by convention):**
+
 - `auth` may import from `user` (e.g. `usersTable`). The reverse is forbidden.
 - `triage` may import from `repository` (e.g. `repositoriesTable`). The reverse is forbidden.
 
@@ -81,12 +85,14 @@ Current domains: `auth`, `user`, `repository`, `triage` — all mounted in `hono
 `@restack/shared`'s `package.json` resolves to `dist/` (gitignored). After editing anything under `packages/shared/src/schemas/`, you MUST run `pnpm --filter @restack/shared build` (or keep its `dev` watcher running) or the frontend/backend will silently use stale types.
 
 All shared DTO contracts follow explicit naming:
+
 - Request Payloads: `<Action><Entity>RequestDTO` (e.g. `LoginRequestDTO`, `CreateRepositoryRequestDTO`)
 - Response Payloads: `<Entity>ResponseDTO` (e.g. `AuthResponseDTO`, `RepositoryResponseDTO`)
 
 ### Backend Entry Points
 
 `backend/src/hono-app.ts` builds and exports the actual `Hono` `app` (middleware, CORS/CSRF, route mounting) and is the single source of truth for behavior. Two thin entry points consume it:
+
 - `backend/src/index.ts` — persistent server via `@hono/node-server` (local dev / VPS)
 - `backend/api/index.ts` — Vercel serverless function; just re-exports `app`
 
@@ -123,6 +129,7 @@ Vitest, colocated `*.test.ts` files (excluded from `tsc` build via `backend/tsco
 ### Engine ↔ Backend Communication
 
 Engine communicates with Backend via exactly two HTTP internal endpoints (no JWT auth — network-level isolation only):
+
 - `GET /api/repositories/internal/by-slug/:slug` — resolve repo slug to metadata
 - `GET /api/repositories/internal?slugs=...` — list repositories
 - `POST /api/triage/internal/bug-reports` — submit a verified bug report
@@ -142,13 +149,15 @@ Each tool in `engine/app/domains/triage/tools/` lives in its own file. Shared he
 The Engine uses `create_deep_agent()` from the `deepagents` package (built on LangGraph). Key patterns:
 
 **Orchestrator + Subagent pattern:**
-- `orchestrator/agent.py` — Main agent that classifies intent and delegates to subagents via the built-in `task` tool. Has no tools of its own (except `write_todos` from TodoListMiddleware).
-- `triage/agent.py` — Triage subagent with all 7 investigation/verification tools. Configured in `orchestrator/subagents.py`.
-- New subagents can be added by appending a dict to the `subagents` list in `subagents.py` — no changes needed to `agent.py` or `service.py`.
 
-**Subagent config format (from `subagents.py`):**
+- `orchestrator/agent.py` — `create_orchestrator_agent()` builds the top-level agent. It has **no tools of its own** besides the built-in `task` tool (+ `write_todos` from TodoListMiddleware) — it only classifies intent and delegates.
+- `triage/agent.py` — Triage subagent with all 7 investigation/verification tools. Configured as a static dict imported directly in `orchestrator/agent.py`.
+- New subagents can be added by importing a new subagent dict in `orchestrator/agent.py` and appending it to the `subagents` list — no changes needed to `service.py` or `routes.py`.
+
+**Subagent config format (from `triage/agent.py`):**
+
 ```python
-{
+TRIAGE_SUBAGENT = {
     "name": "triage",                    # identifier for task(agent="name")
     "description": "...",                # when orchestrator should delegate
     "system_prompt": TRIAGE_SYSTEM_PROMPT,  # isolated instructions
@@ -165,6 +174,7 @@ The Engine uses `create_deep_agent()` from the `deepagents` package (built on La
 **ToolRuntime injection:** Tools that need access to runtime context (e.g., `submit_bug_report` reading `thread_id`) use `runtime: ToolRuntime` as a parameter — Deep Agents injects this automatically. The `thread_id` is accessed via `runtime.config.get("configurable", {}).get("thread_id")`.
 
 **Recursion & timeout limits** (in `infra/agent/streamer.py`):
+
 - `AGENT_RECURSION_LIMIT = 100` — LangGraph default (25) is too tight for self-correction loops (investigate → draft → verify → revise cycles).
 - `AGENT_TURN_TIMEOUT_SECONDS = 600` — Docker verification can take 1-3+ minutes.
 

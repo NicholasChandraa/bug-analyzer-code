@@ -48,18 +48,27 @@ async def stream_agent_events(
     last_msg_count = len((prior_state.values or {}).get("messages") or [])
     last_todos_json = ""
     last_ai_text = ""
+    step_count = 0
+
+    logger.info("streaming started (chat_session_id=%s)", chat_session_id)
 
     async for chunk in agent.astream(
         {"messages": [{"role": "user", "content": content}]},
         config,
         stream_mode="values",
     ):
+
+        logger.debug("ISI DARI CHUNK: %s", chunk['messages'][0])
+        logger.debug("CHUNK TYPE: %s | MESSAGES TYPE: %s | LAST MSG TYPE: %s", type(chunk).__name__, type(chunk.get("messages")).__name__, type(chunk.get("messages", [None])[-1]).__name__ if chunk.get("messages") else "N/A")
+        step_count += 1
+
         # Todos: emit kalau berubah.
         todos = chunk.get("todos")
         if todos:
             todos_json = json.dumps(todos, default=str)
             if todos_json != last_todos_json:
                 last_todos_json = todos_json
+                logger.debug("todos updated (chat_session_id=%s): %s", chat_session_id, todos_json)
                 yield {"event": "todos_updated", "data": todos}
 
         # Messages: emit new AIMessage deltas.
@@ -68,9 +77,11 @@ async def stream_agent_events(
             for message in messages[last_msg_count:]:
                 if isinstance(message, AIMessage):
                     last_ai_text = str(message.text)
+                    logger.debug("message delta (chat_session_id=%s): %s", chat_session_id, last_ai_text[:200])
                     yield {"event": "message_delta", "data": {"content": last_ai_text}}
             last_msg_count = len(messages)
 
+    logger.info("streaming completed (chat_session_id=%s, steps=%s, content_length=%s)", chat_session_id, step_count, len(last_ai_text))
     yield {
         "event": "completed",
         "data": {"chatSessionId": chat_session_id, "content": last_ai_text},

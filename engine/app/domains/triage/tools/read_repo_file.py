@@ -1,11 +1,14 @@
 """Tool: read_repo_file - baca isi file (opsional rentang baris) dari repo di disk."""
 
 import asyncio
+import logging
 
 from langchain.tools import tool
 
 from app.domains.triage.schemas import ReadRepoFileArgs
 from app.domains.triage.tools._common import resolve_repo_path, resolve_safe_path
+
+logger = logging.getLogger(__name__)
 
 
 @tool(
@@ -16,10 +19,12 @@ from app.domains.triage.tools._common import resolve_repo_path, resolve_safe_pat
 async def read_repo_file_tool(
     repo_slug: str, file_path: str, start_line: int | None = None, end_line: int | None = None
 ) -> str:
+    logger.info("tool: read_repo_file repo_slug=%s file_path=%s start=%s end=%s", repo_slug, file_path, start_line, end_line)
     local_path = await resolve_repo_path(repo_slug)
     absolute_path = resolve_safe_path(local_path, file_path)
 
     content = await asyncio.to_thread(_read_file_sync, absolute_path)
+    logger.info("tool: read_repo_file read_bytes=%s", len(content))
 
     if not start_line and not end_line:
         return content

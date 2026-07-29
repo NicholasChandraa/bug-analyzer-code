@@ -3,11 +3,12 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import type { ZodType } from "zod"
+import { userApi } from "@/domains/user/services/user.api"
 
 /**
  * Reusable mutation hook for authorization forms (Login, Register).
  * Standardizes Zod input validation, pending state tracking, error handling,
- * and automatic client-side redirection on successful mutation.
+ * and automatic role-based client-side redirection on successful mutation.
  */
 export function useAuthMutation<TInput>(schema: ZodType<TInput>, mutate: (data: TInput) => Promise<unknown>) {
   const router = useRouter()
@@ -25,7 +26,12 @@ export function useAuthMutation<TInput>(schema: ZodType<TInput>, mutate: (data: 
     setError(null)
     try {
       await mutate(parsed.data)
-      router.push("/dashboard")
+      const meRes = await userApi.me().catch(() => null)
+      if (meRes?.user?.role === "admin") {
+        router.push("/admin/dashboard")
+      } else {
+        router.push("/dashboard")
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong")
     } finally {

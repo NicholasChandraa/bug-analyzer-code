@@ -6,7 +6,6 @@ import Link from "next/link"
 import type { UserResponseDTO, UserRole } from "@restack/shared"
 import { userApi } from "@/domains/user/services/user.api"
 import { Button } from "@/components/ui/button"
-import { ShieldAlert, ArrowLeft } from "lucide-react"
 
 interface RequireAuthProps {
   children: React.ReactNode
@@ -43,19 +42,20 @@ export function RequireAuth({ children, requiredRole }: RequireAuthProps) {
   }
 
   if (requiredRole && user?.role !== requiredRole) {
+    const targetDashboard = user?.role === "admin" ? "/admin/dashboard" : "/dashboard"
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="max-w-md w-full text-center space-y-4 border rounded-xl p-8 bg-card shadow-sm">
-          <ShieldAlert className="w-12 h-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-bold">Akses Ditolak (403 Forbidden)</h2>
+        <div className="max-w-md w-full text-center space-y-4 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 bg-card shadow-sm">
+          <h2 className="text-xl font-bold text-foreground">Akses Ditolak (403 Forbidden)</h2>
           <p className="text-sm text-muted-foreground">
-            Halaman ini membutuhkan hak akses <strong>{requiredRole.toUpperCase()}</strong>.
+            Halaman ini membutuhkan hak akses <strong className="text-foreground">{requiredRole.toUpperCase()}</strong>.
             Role akun Anda saat ini adalah <strong className="text-foreground">{user?.role.toUpperCase()}</strong>.
           </p>
           <div className="pt-2">
             <Button asChild variant="default" className="w-full">
-              <Link href="/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" /> Kembali ke Dashboard
+              <Link href={targetDashboard}>
+                &larr; Kembali ke Dashboard ({user?.role.toUpperCase()})
               </Link>
             </Button>
           </div>
@@ -66,4 +66,3 @@ export function RequireAuth({ children, requiredRole }: RequireAuthProps) {
 
   return <>{children}</>
 }
-

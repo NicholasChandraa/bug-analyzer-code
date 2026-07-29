@@ -30,7 +30,7 @@ export const repositoryRoutes = new Hono<{ Variables: AppVariables }>()
             return handleError(c, e, "Register repository failed")
         }
     })
-    .get("/", requireAuth, requireRole("admin"), async (c) => {
+    .get("/", requireAuth, async (c) => {
         try {
             const repositories = await repositoryService.listRepositories()
             return c.json({ repositories })

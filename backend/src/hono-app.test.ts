@@ -14,7 +14,7 @@ describe("Hono App Global Error Handling & CSRF", () => {
     expect(res.status).toBe(403)
     expect(res.headers.get("content-type")).toContain("application/json")
     const body = await res.json()
-    expect(body.error).toBe("Forbidden: CSRF validation failed. Invalid or missing Origin header.")
+    expect(body.error).toContain("Forbidden: CSRF validation failed. Invalid or missing Origin header.")
   })
 
   it("returns 404 JSON for non-existent routes under /api", async () => {

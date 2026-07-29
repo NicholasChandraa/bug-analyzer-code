@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # Log level: INFO (default, prod) atau DEBUG (lihat detail chunk/messages agent loop).
     LOG_LEVEL: str = "INFO"
 
+    # Path file log. Default: <repo-root>/logs/app.log (auto-rotate 10MB, keep 5 file).
+    # Set "" untuk disable file logging (cuma stdout).
+    # Path dari .env di-resolve absolut di get_settings() supaya gak ketergantungan cwd worker.
+    LOG_FILE_PATH: str = ""
+
     # MCP servers config - JSON string, format:
     # {"server_name": {"transport": "http"|"sse"|"stdio", "url": "...", "command": "...", "args": [...], "env": {...}}}
     # Kosong = gak ada MCP server. Set di .env: MCP_SERVERS='{"github": {"transport":"http","url":"..."}}'
@@ -37,7 +42,13 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    # Resolve LOG_FILE_PATH absolut relatif ke repo root kalau path-nya bukan absolute
+    # (jadi worker granian yang spawn dari cwd manapun tetep bisa nulis ke log file).
+    if settings.LOG_FILE_PATH and not Path(settings.LOG_FILE_PATH).is_absolute():
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        settings.LOG_FILE_PATH = str((repo_root / settings.LOG_FILE_PATH).resolve())
+    return settings
 
 
 settings = get_settings()

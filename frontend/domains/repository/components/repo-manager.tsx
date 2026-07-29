@@ -67,21 +67,11 @@ export function RepoManager() {
     }
   };
 
-  const handleSyncAll = async () => {
-    setActionSuccess(null);
-    try {
-      await syncCodebase();
-      setActionSuccess("Codebase & Environment berhasil diperbarui!");
-    } catch {
-      // error state handled by hook
-    }
-  };
-
   const handleSyncOne = async (id: number, repoName: string) => {
     setActionSuccess(null);
     try {
       await syncCodebase(id);
-      setActionSuccess(`Codebase ${repoName} berhasil diperbarui!`);
+      setActionSuccess(`Status lokasi ${repoName} berhasil diperbarui!`);
     } catch {
       // error state handled by hook
     }
@@ -119,21 +109,10 @@ export function RepoManager() {
             Manajemen Repositori
           </h2>
           <p className="text-muted-foreground text-sm">
-            Daftarkan folder repositori lokal di disk untuk analisis bug oleh
-            Triage Agent.
+            Daftarkan folder repositori lokal di disk untuk diakses oleh Triage Agent.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSyncAll}
-            disabled={syncing || repositories.length === 0}
-          >
-            <RefreshCw
-              className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`}
-            />
-            {syncing ? "Memperbarui..." : "Update Semua Codebase"}
-          </Button>
+        <div>
           <Button onClick={() => setIsAdding(!isAdding)}>
             <Plus className="w-4 h-4 mr-2" />
             {isAdding ? "Batal" : "Tambah Repo"}
@@ -252,7 +231,7 @@ export function RepoManager() {
           <h3 className="text-base font-semibold">Belum Ada Repositori</h3>
           <p className="text-muted-foreground text-sm mt-1">
             Klik tombol &quot;Tambah Repo&quot; untuk mendaftarkan repositori
-            git pertama Anda.
+            pertama Anda.
           </p>
         </div>
       ) : (

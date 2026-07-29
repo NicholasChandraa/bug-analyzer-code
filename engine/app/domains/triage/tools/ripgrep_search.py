@@ -1,10 +1,14 @@
 """Tool: ripgrep_search - cari kata kunci lintas repo di disk."""
 
+import logging
+
 from langchain.tools import tool
 
 from app.domains.triage.schemas import RipgrepSearchArgs
 from app.domains.triage.tools._common import resolve_repos
 from app.infra.code_search.ripgrep import search_across_repos
+
+logger = logging.getLogger(__name__)
 
 
 @tool(
@@ -16,11 +20,13 @@ from app.infra.code_search.ripgrep import search_across_repos
     ),
 )
 async def ripgrep_search_tool(query: str, repo_slugs: list[str] | None = None) -> str:
+    logger.info("tool: ripgrep_search query=%s repo_slugs=%s", query, repo_slugs)
     repos = await resolve_repos(repo_slugs)
     if not repos:
         return "Tidak ada repositori terdaftar yang cocok."
 
     matches = await search_across_repos(query, [r.local_path for r in repos])
+    logger.info("tool: ripgrep_search found=%s matches", len(matches))
     if not matches:
         return f'Tidak ada hasil pencocokan untuk kata kunci "{query}"'
 

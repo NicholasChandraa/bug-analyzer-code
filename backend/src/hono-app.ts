@@ -57,12 +57,32 @@ app.use(
   })
 )
 
-app.use(
-  "/api/*",
-  csrf({
-    origin: allowedOrigins,
-  })
-)
+app.use("/api/*", async (c, next) => {
+  const csrfMiddleware = csrf({ origin: allowedOrigins })
+  try {
+    await csrfMiddleware(c, next)
+  } catch (err) {
+    if (err instanceof HTTPException && err.status === 403) {
+      const reqLogger = c.get("logger") || logger
+      reqLogger.warn(
+        {
+          origin: c.req.header("origin"),
+          allowedOrigins,
+          path: new URL(c.req.url).pathname,
+        },
+        "CSRF validation failed"
+      )
+
+      throw new HTTPException(403, {
+        message:
+          "Forbidden: CSRF validation failed. Invalid or missing Origin header. " +
+          `Expected one of: ${allowedOrigins.join(", ")}. ` +
+          `Received origin: ${c.req.header("origin") ?? "(none)"}`,
+      })
+    }
+    throw err
+  }
+})
 
 const routes = app
   .route("/api/auth", authRoutes)
@@ -80,14 +100,6 @@ app.notFound((c) => {
 // Global Error handler: transforms HTTPExceptions (like CSRF 403) and unhandled errors into JSON
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
-    if (err.status === 403) {
-      return c.json(
-        {
-          error: "Forbidden: CSRF validation failed. Invalid or missing Origin header.",
-        },
-        403
-      )
-    }
     return c.json({ error: err.message || "HTTP Exception" }, err.status)
   }
 

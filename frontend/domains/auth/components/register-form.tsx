@@ -10,7 +10,7 @@ import { User, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, ArrowRight } from 
 
 /**
  * Modern RegisterForm UI Component (Auth Domain).
- * Features input icons, password visibility toggle, and clear loading/error feedback.
+ * Features input icons, password visibility toggle, and return link to landing page.
  */
 export function RegisterForm() {
   const { register, error, isPending } = useRegister()
@@ -110,10 +110,15 @@ export function RegisterForm() {
         </Button>
       </form>
 
-      <div className="pt-2 text-center text-xs text-muted-foreground border-t">
-        Sudah memiliki akun?{" "}
-        <Link href="/login" className="font-semibold text-primary hover:underline underline-offset-4">
-          Masuk di Sini
+      <div className="pt-2 flex items-center justify-between text-xs text-muted-foreground border-t">
+        <div>
+          Sudah memiliki akun?{" "}
+          <Link href="/login" className="font-semibold text-primary hover:underline underline-offset-4">
+            Masuk di Sini
+          </Link>
+        </div>
+        <Link href="/" className="font-semibold text-slate-500 hover:text-foreground transition-colors">
+          &larr; Beranda
         </Link>
       </div>
     </div>

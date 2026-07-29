@@ -44,8 +44,34 @@ export function useTriageChat(initialSessionId?: number | null) {
   }, [activeSessionId]);
 
   useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
+    let isMounted = true;
+    triageService
+      .listChatSessions()
+      .then((data) => {
+        if (isMounted) {
+          setSessions(data);
+          if (data.length > 0 && !activeSessionId) {
+            setActiveSessionId(data[0].id);
+          }
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load chat sessions",
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingSessions(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeSessionId]);
 
   const loadSessionMessages = useCallback(async (sessionId: number) => {
     try {
@@ -62,10 +88,34 @@ export function useTriageChat(initialSessionId?: number | null) {
   }, []);
 
   useEffect(() => {
-    if (activeSessionId) {
-      loadSessionMessages(activeSessionId);
-    }
-  }, [activeSessionId, loadSessionMessages]);
+    if (!activeSessionId) return;
+    let isMounted = true;
+    triageService
+      .listMessages(activeSessionId)
+      .then((data) => {
+        if (isMounted) {
+          setError(null);
+          setTodos([]);
+          setMessages(data);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load messages",
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingMessages(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeSessionId]);
 
   const selectSession = (sessionId: number | null) => {
     setActiveSessionId(sessionId);
@@ -209,8 +259,6 @@ export function useTriageChat(initialSessionId?: number | null) {
                   dataObj.message ||
                   "An error occurred during triage processing";
                 setError(errMsg);
-                // Kalau agent belum ngomong apa-apa pas error, hapus placeholder kosong.
-                // Kalau udah ada content parsial, biarkan (user bisa lihat progress sebelum error).
                 setMessages((prev) => {
                   const placeholder = prev.find(
                     (m) => m.id === tempAssistantMessageId,

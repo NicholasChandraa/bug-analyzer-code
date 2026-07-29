@@ -1,10 +1,14 @@
 """Tool: submit_bug_report - simpan hasil triage terverifikasi ke Backend."""
 
+import logging
+
 from langchain.tools import tool, ToolRuntime
 
 from app.domains.triage.schemas import SubmitBugReportArgs
 from app.domains.triage.tools._common import resolve_repo, resolve_safe_path
 from app.infra import backend_client
+
+logger = logging.getLogger(__name__)
 
 
 @tool(
@@ -24,6 +28,8 @@ async def submit_bug_report_tool(
     runtime: ToolRuntime,
     line_estimate: str | None = None,
 ) -> str:
+    logger.info("tool: submit_bug_report repo_slug=%s file_path=%s", repo_slug, file_path)
+
     # chatSessionId dari runtime.config.configurable.thread_id (bukan argumen tool) -
     # thread_id di-set service.py jadi str(chatSessionId) saat agent.astream() dipanggil.
     configurable = runtime.config.get("configurable") or {}
@@ -39,7 +45,7 @@ async def submit_bug_report_tool(
     repo = await resolve_repo(repo_slug)
     resolve_safe_path(repo.local_path, file_path)  # guard-only, result unused
 
-    await backend_client.submit_bug_report(
+    bug_report_id = await backend_client.submit_bug_report(
         chat_session_id=chat_session_id,
         repository_id=repo.id,
         file_path=file_path,
@@ -47,4 +53,5 @@ async def submit_bug_report_tool(
         reason=reason,
         suggested_fix=suggested_fix,
     )
-    return "Bug report berhasil disimpan."
+    logger.info("tool: submit_bug_report saved bug_report_id=%s", bug_report_id)
+    return f"Bug report berhasil disimpan (id={bug_report_id})."

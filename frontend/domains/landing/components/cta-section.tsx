@@ -2,38 +2,28 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Sparkles } from "lucide-react"
 
 /**
  * Landing Page CTA Section component.
- * Features final CTA push to register or open the dashboard.
+ * Open, high-impact minimalist section.
  */
 export function CtaSection() {
   return (
-    <section className="py-20 lg:py-24 bg-slate-950 text-white relative overflow-hidden border-b border-slate-800/60">
-      <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-purple-500/5 to-cyan-500/10 pointer-events-none" />
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs font-semibold text-amber-400">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Tingkatkan Efisiensi Debugging Anda</span>
-        </div>
-
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white max-w-3xl mx-auto leading-tight">
-          Siap Memulai Analisis Bug Berbasis AI Hari Ini?
+    <section className="py-24 lg:py-32 bg-background text-foreground relative overflow-hidden transition-colors duration-300">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
+        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
+          Siap Memulai Analisis Bug Berbasis AI?
         </h2>
 
-        <p className="text-sm sm:text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
+        <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">
           Hubungkan repositori proyek Anda dan rasakan kemudahan penelusuran bug terverifikasi secara instan.
         </p>
 
-        <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-          <Button asChild size="lg" className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-base px-8 shadow-lg">
-            <Link href="/register" className="flex items-center gap-2">
-              <span>Daftar Akun Baru</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+        <div className="pt-2 flex flex-wrap items-center justify-center gap-4">
+          <Button asChild size="lg" className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-base px-8 h-12 rounded-xl shadow-lg hover:shadow-orange-500/20 transition-all">
+            <Link href="/register">Daftar Akun Baru</Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="border-slate-700 bg-slate-900/60 text-slate-200 hover:bg-slate-800 hover:text-white">
+          <Button asChild variant="outline" size="lg" className="border-slate-300 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 h-12 rounded-xl px-6">
             <Link href="/login">Masuk ke Akun</Link>
           </Button>
         </div>

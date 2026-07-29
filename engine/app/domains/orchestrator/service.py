@@ -43,8 +43,11 @@ async def invoke_orchestrator(agent, chat_session_id: int, content: str) -> Asyn
     try:
         async with asyncio.timeout(AGENT_TURN_TIMEOUT_SECONDS):
             async for event in stream_agent_events(agent, config, content, chat_session_id):
+                logger.debug("ISI DARI EVENT: %s", event)
+                logger.debug("emit event (chat_session_id=%s): %s", chat_session_id, event.get("event"))
                 yield event
 
+        logger.info("orchestrator turn completed (chat_session_id=%s)", chat_session_id)
     except GraphRecursionError:
         logger.error("Orchestrator exceeded maximum reasoning steps for chat_session_id=%s", chat_session_id)
         yield {"event": "error", "data": {"message": "Agent exceeded maximum reasoning steps"}}

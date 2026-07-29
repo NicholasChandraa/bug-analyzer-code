@@ -27,7 +27,7 @@ export function ProfileCard() {
             <CardDescription className="text-sm">{profile.email}</CardDescription>
           </div>
           {isAdmin ? (
-            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 flex items-center gap-1">
+            <Badge className="bg-orange-500 text-white font-bold flex items-center gap-1 shadow-sm border-transparent">
               <ShieldCheck className="w-3.5 h-3.5" /> ADMIN
             </Badge>
           ) : (
@@ -44,4 +44,3 @@ export function ProfileCard() {
     </Card>
   )
 }
-

@@ -5,25 +5,25 @@ import { ChatInterface } from "@/domains/triage/components/chat-interface"
 import { useProfile } from "@/domains/user/hooks/use-profile"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, LayoutDashboard } from "lucide-react"
 
 function ChatPageContent() {
   const { profile } = useProfile()
   const isAdmin = profile?.role === "admin"
+  const dashboardHref = isAdmin ? "/admin/dashboard" : "/dashboard"
 
   return (
-    <main className="min-h-screen bg-muted/20 p-4">
+    <main className="min-h-screen bg-background p-4 text-foreground">
       <div className="max-w-7xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/dashboard">
-              <ArrowLeft className="w-4 h-4 mr-1" /> Kembali ke Dashboard
+            <Link href={dashboardHref}>
+              &larr; Kembali ke Dashboard
             </Link>
           </Button>
           {isAdmin && (
             <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/repositories">
-                <LayoutDashboard className="w-4 h-4 mr-1" /> Kelola Repositori
+              <Link href="/admin/repositories">
+                Kelola Repositori
               </Link>
             </Button>
           )}
@@ -41,4 +41,3 @@ export default function ChatPage() {
     </RequireAuth>
   )
 }
-
